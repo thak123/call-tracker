@@ -17,8 +17,24 @@ def run(title, cmd, env=None):
     return subprocess.run(cmd, cwd=HERE, env=env).returncode == 0
 
 
+def ensure_web_copies():
+    """The saved website copies (tests/fixtures/web/*.gz) are not in Git. Re-create them when missing."""
+    web = TESTS / "fixtures" / "web"
+    if (web / "index.json").exists() and list(web.glob("*.gz")):
+        return True
+    print("\nSaved website copies are missing (they are not stored in Git). Recording them now from the real websites...")
+    ok = run("Recording website copies", [sys.executable, str(TESTS / "web_replay.py"), "record"])
+    if ok:
+        print("\nRecorded today's pages. The websites change over time, so the exact call counts in"
+              "\ntests/test_fetch.py may differ from today's pages: if Part B fails on a count, update the number.")
+    return ok
+
+
 def main():
     only = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if (not only or "B" in only) and not ensure_web_copies():
+        print("Could not record the website copies (no internet?). Part B needs them.")
+        sys.exit(1)
     results = {}
     parts = {
         "A": ("Part A - page workflows", ["node", "--test", "--test-reporter=spec", str(TESTS / "ui.test.mjs")]),

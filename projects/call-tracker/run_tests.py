@@ -4,6 +4,7 @@ Part A  page workflows      tests/ui.test.mjs     (Chrome in a hidden window, vi
 Part B  search script       tests/test_fetch.py   (saved website copies, no internet)
 Part C  helper (serve.py)   tests/test_serve.py
 Part D  weekly runner       tests/test_weekly.py
+Part E  icon files          tests/test_assets.py
 """
 import subprocess
 import sys
@@ -42,6 +43,7 @@ def main():
         "B": ("Part B - search script", [sys.executable, "-m", "unittest", "-v", "tests.test_fetch"]),
         "C": ("Part C - helper", [sys.executable, "-m", "unittest", "-v", "tests.test_serve"]),
         "D": ("Part D - weekly runner", [sys.executable, "-m", "unittest", "-v", "tests.test_weekly"]),
+        "E": ("Part E - icon files", [sys.executable, "-m", "unittest", "-v", "tests.test_assets"]),
     }
     for key, (title, cmd) in parts.items():
         if only and key not in only:

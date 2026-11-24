@@ -4,15 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Call Tracker</title>
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="icons/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#1d4373">
 <style>
   :root {
     --bg: #f6f5f2; --card: #ffffff; --ink: #1f2328; --muted: #6a6f76;
     --line: #e2e0db; --accent: #2f5d8a; --soon: #b3261e; --mid: #b26a00; --ok: #2e7d32;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }   /* an element marked hidden must really disappear, whatever layout rule it has */
   body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
   header { padding: 24px 28px 8px; }
   h1 { margin: 0 0 4px; font-size: 24px; }
+  h1 { display: flex; align-items: center; gap: 10px; }
+  h1 .logo { width: 36px; height: 36px; flex: none; }
   header p { margin: 0; color: var(--muted); }
   .filters { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; padding: 16px 28px; border-bottom: 1px solid var(--line); }
   .filters label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); gap: 4px; }
@@ -53,6 +61,12 @@
   .chip-type.type-third-party-call { background: #fde0d3; }
   .chip-type.type-competition { background: #d4f0e3; }
   .chip-type.type-datathon { background: #fcecc2; }
+  .chip-opens { background: #e3e1fa; }
+  .chip-where.where-online { background: #d9eef7; }
+  .chip-where.where-in-person { background: #f6dfe9; }
+  details.about { font-size: 13px; color: var(--text-secondary, #52514e); }
+  details.about summary { cursor: pointer; color: var(--accent); font-size: 12px; }
+  details.about p { margin: 4px 0 2px; }
   .chip-deadline { font-weight: 600; }
   .chip-deadline.soon { background: #fbdcd8; }
   .chip-deadline.mid { background: #fde9c4; }
@@ -75,6 +89,16 @@
   select.status-skipped { background: #e8e8e5; }
   .newtag { display: inline-block; font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 4px; background: #d3302f; color: #fff; margin-left: 4px; letter-spacing: .03em; }
   .card.dismissed { opacity: .55; }
+  .pick { display: flex; align-items: center; flex: none; }
+  .pick input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; margin: 0; }
+  .card .top { align-items: flex-start; gap: 8px; }
+  .card .top .title { flex: 1; }
+  .card.picked { outline: 2px solid var(--accent); outline-offset: -1px; background: #f4f8fd; }
+  .pickbar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; z-index: 20; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center;
+    background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; box-shadow: 0 6px 24px rgba(0,0,0,.18); max-width: calc(100vw - 24px); }
+  .pickbar #pickCount { font-weight: 600; }
+  .chip-note { background: #fff3b0; border: 0; cursor: pointer; font: inherit; font-size: 12px; max-width: 100%; text-align: left; }
+  .note-add { font-size: 12px; padding: 1px 8px; color: var(--muted); border-style: dashed; border-radius: 6px; background: transparent; cursor: pointer; }
   .acts { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
   .acts .share { font-size: 12px; padding: 4px 8px; }
   .acts select { font-size: 12px; padding: 4px 6px; }
@@ -99,6 +123,7 @@
   .row a { color: var(--accent); font-size: 13px; white-space: nowrap; }
   .empty { color: var(--muted); font-style: italic; }
   .note { color: var(--muted); font-size: 12px; margin-top: 30px; }
+  body.has-pickbar { padding-bottom: 80px; }
   /* ---- summary dashboard ---- */
   .viz-root {
     --surface-1: #fcfcfb; --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #6f6e69;
@@ -138,6 +163,22 @@
   .spin { display: inline-block; width: 10px; height: 10px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; margin-right: 6px; vertical-align: -1px; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+  .sourcesbox { max-width: 1240px; margin: 10px auto 0; padding: 0 28px; }
+  .sources { font-size: 13px; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; }
+  .sources summary { cursor: pointer; color: var(--text-secondary, #52514e); }
+  .sources.attn { border-color: #e0b04a; background: #fffaf0; }
+  .sources.attn summary { color: #8a4b00; font-weight: 600; }
+  #sourcesList { list-style: none; margin: 8px 0 4px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 4px 18px; }
+  #sourcesList li { display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+  #sourcesList .sym { font-weight: 700; width: 1.1em; text-align: center; }
+  #sourcesList .lbl { font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 4px; }
+  #sourcesList a { color: var(--ink); }
+  #sourcesList .cnt { color: var(--muted); }
+  #sourcesList .msg { color: #8a4b00; flex-basis: 100%; padding-left: 1.6em; font-size: 12px; }
+  .src-ok .lbl { background: #dcefdc; color: #1b5e20; }
+  .src-warn .lbl { background: #fde9c4; color: #7a4300; }
+  .src-problem .lbl { background: #fbdcd8; color: #8c1d18; }
+  .src-alert .lbl { background: #d6e6fb; color: #123a73; }
   /* ---- keyword editor ---- */
   .kwpanel { max-width: 1240px; margin: 14px auto 0; padding: 0 28px; }
   .kwpanel > * { background: #fff; }
@@ -174,7 +215,7 @@
 </head>
 <body>
 <header>
-  <h1>Call Tracker</h1>
+  <h1><img class="logo" src="icons/favicon.svg" alt="" width="36" height="36">Call Tracker</h1>
   <p>Research funding, third-party calls, competitions and datathons.<span id="sampleNote"> All entries are made-up examples.</span></p>
 </header>
 
@@ -198,7 +239,10 @@
     <select id="fFunder"><option value="">All</option></select>
   </label>
   <label>Sort open calls by
-    <select id="fSort"><option value="fit">Best fit first</option><option value="deadline">Deadline</option></select>
+    <select id="fSort"><option value="deadline">Deadline (soonest first)</option><option value="fit">Best fit first</option></select>
+  </label>
+  <label>Where
+    <select id="fWhere"><option value="">All</option></select>
   </label>
   <label>My status
     <select id="fStatus">
@@ -211,8 +255,8 @@
     <input type="checkbox" id="fNew"><span>Only new (<span id="newCount">0</span>)</span></label>
   <label id="dismissedToggle" class="check" hidden title="Calls I dismissed">
     <input type="checkbox" id="fDismissed"><span>Show <span id="dismissedCount">0</span> dismissed</span></label>
-  <label id="otherToggle" class="check" hidden title="EU calls found by browsing that do not match my keywords or research area">
-    <input type="checkbox" id="fOther"><span>Also show <span id="otherCount">0</span> other EU calls</span></label>
+  <label id="otherToggle" class="check" hidden title="Calls the sources found that do not match my keywords or research area">
+    <input type="checkbox" id="fOther"><span>Also show <span id="otherCount">0</span> calls outside my field</span></label>
   <div id="keywordFilter">Keyword: <span class="tag" id="kwName"></span> <button id="kwClear">show all</button></div>
   <div class="source">
     <span id="sourceInfo"></span>
@@ -226,6 +270,13 @@
 </section></div>
 <p id="loadMsg" class="loadmsg" hidden></p>
 <div id="refreshMsg" class="refreshmsg" role="status" hidden></div>
+
+<div class="sourcesbox">
+  <details id="sourcesPanel" class="sources" hidden>
+    <summary id="sourcesSummary"></summary>
+    <ul id="sourcesList"></ul>
+  </details>
+</div>
 
 <section class="kwpanel" id="kwPanel" hidden aria-label="My keywords">
   <div class="kwhead">
@@ -277,12 +328,32 @@
     </div>
   </div>
 </section>
+<div id="pickBar" class="pickbar" role="region" aria-label="Selected calls" hidden>
+  <span id="pickCount">0 selected</span>
+  <button id="pickAll" title="Select every open call shown now">Select all shown</button>
+  <button id="pickClear">Clear</button>
+  <button id="pickShare" class="primary">Share selected…</button>
+</div>
+<dialog id="noteDialog" aria-labelledby="noteTitle">
+  <form method="dialog" onsubmit="return false">
+    <h2 id="noteTitle">Note</h2>
+    <label>My note (only on this computer; it goes into a message or calendar file only when I share)
+      <textarea id="noteText" rows="5" maxlength="500"></textarea>
+    </label>
+    <div class="shareacts">
+      <button type="button" id="noteSave" class="primary">Save</button>
+      <button type="button" id="noteDelete">Delete note</button>
+      <button type="button" id="noteCancel">Cancel</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="shareDialog" aria-labelledby="shareTitle">
   <form method="dialog" onsubmit="return false">
     <h2 id="shareTitle">Share</h2>
     <label id="shareScopeRow" hidden>What to share
       <select id="shareScope"></select>
     </label>
+    <p id="shareHint" class="sharehelp" hidden>Tip: tick the checkbox on the cards you want, then press "Share selected…" to send exactly those.</p>
     <label>Message (you can edit it)
       <textarea id="shareText" rows="12"></textarea>
     </label>
@@ -292,6 +363,7 @@
       <a id="shareEmail" class="btn primary" href="mailto:">E-mail…</a>
       <button type="button" id="shareNative" hidden>Share…</button>
       <button type="button" id="shareCopy">Copy text</button>
+      <button type="button" id="shareIcs" title="A calendar file with the deadlines; import it into your own calendar">Calendar file (.ics)</button>
       <span id="shareMsg" role="status"></span>
       <button type="button" id="shareClose">Close</button>
     </div>
@@ -330,7 +402,7 @@ const CALLS = [
 
 const DAY = 86400000;
 const today = new Date(); today.setHours(0, 0, 0, 0);
-CALLS.forEach(c => { c.deadline = new Date(today.getTime() + c.days * DAY); c.link = "https://example.com/calls/" + c.id; c.source = "sample"; c.eu = false; c.fit = 0; c.scope = "core"; });
+CALLS.forEach(c => { c.deadline = new Date(today.getTime() + c.days * DAY); c.link = "https://example.com/calls/" + c.id; c.source = "sample"; c.eu = false; c.fit = 0; c.scope = "core"; c.about = ""; c.opens = null; c.mode = ""; c.location = ""; });
 const SAMPLE = CALLS.slice();
 
 // ---- CSV loading ----
@@ -397,12 +469,34 @@ function callsFromCSV(text) {
       who: list(get(r, "who")), keywords: list(get(r, "keywords")),
       source: get(r, "source"), eu: /^(yes|true|1|da)$/i.test(get(r, "eu")),
       fit: parseInt(get(r, "fit"), 10) || 0, scope: get(r, "scope") || "core",
+      mode: get(r, "mode"), location: get(r, "location"),
+      about: get(r, "about"), opens: (m => m ? new Date(+m[1], +m[2] - 1, +m[3]) : null)(/^(\d{4})-(\d{2})-(\d{2})$/.exec(get(r, "opens"))),
     });
   });
   return { calls, problems };
 }
 
-function useCSV(text, name, remember) {
+let currentSources = null;   // per-source results of the newest search (only when the page shows those results)
+const SRC = { ok: ["✓", "OK"], warn: ["⚠", "Check"], problem: ["✗", "Failed"], alert: ["●", "Look"] };
+function renderSources() {
+  const panel = $("sourcesPanel"), list = currentSources;
+  panel.hidden = !list || !list.length;
+  if (panel.hidden) return;
+  const ok = list.filter(x => x.status === "ok").length, need = list.length - ok;
+  $("sourcesSummary").textContent = need ? `Sources: ${ok} ok · ${need} need a look` : `Sources: all ${ok} ok`;
+  panel.classList.toggle("attn", need > 0);
+  $("sourcesList").replaceChildren(...list.map(x => {
+    const li = document.createElement("li"), [sym, label] = SRC[x.status] || SRC.ok;
+    li.className = "src-" + x.status;
+    li.innerHTML = `<span class="sym" aria-hidden="true">${sym}</span> <span class="lbl">${label}</span> <a target="_blank" rel="noopener"></a> <span class="cnt"></span> <span class="msg"></span>`;
+    const a = li.querySelector("a"); a.textContent = x.name; if (x.url) a.href = x.url;
+    li.querySelector(".cnt").textContent = plural(x.count || 0, "call");
+    li.querySelector(".msg").textContent = x.message || "";
+    return li;
+  }));
+}
+
+function useCSV(text, name, remember, sources = null) {
   const { calls, problems } = callsFromCSV(text);
   const msg = $("loadMsg");
   if (!calls.length) {
@@ -410,7 +504,7 @@ function useCSV(text, name, remember) {
     return false;
   }
   CALLS.length = 0; CALLS.push(...calls);
-  sourceLabel = name;
+  sourceLabel = name; currentSources = sources;
   if (remember) localStorage.setItem(CSV_STORE, JSON.stringify({ name, text, loadedAt: new Date().toISOString() }));
   msg.textContent = problems.join(" "); msg.hidden = !problems.length;
   render();
@@ -436,7 +530,7 @@ function card(c) {
   const el = document.createElement("article");
   el.className = "card" + (c.days < 0 ? " closed" : "");
   el.innerHTML = `
-    <div class="top"><div class="title"></div><span class="countdown ${cd.cls}">${cd.text}</span></div>
+    <div class="top"><label class="pick" title="Tick to select this call for sharing"><input type="checkbox" aria-label="Select this call"></label><div class="title"></div><span class="countdown ${cd.cls}">${cd.text}</span></div>
     <div class="chips chips-money"></div>
     <div class="chips chips-when"></div>
     <div class="tags"></div>
@@ -450,6 +544,14 @@ function card(c) {
   const isDismissed = dismissed.has(c.id);
   if (isDismissed) el.classList.add("dismissed");
   el.querySelector(".share").onclick = () => openShare({ type: "one", call: c });
+  const box = el.querySelector(".pick input");
+  box.checked = picked.has(c.id);
+  el.classList.toggle("picked", box.checked);
+  box.onchange = () => {
+    box.checked ? picked.add(c.id) : picked.delete(c.id);
+    el.classList.toggle("picked", box.checked);
+    updatePickBar();
+  };
   const dBtn = el.querySelector(".dismiss");
   dBtn.textContent = isDismissed ? "Restore" : "Dismiss";
   dBtn.onclick = () => { isDismissed ? dismissed.delete(c.id) : dismissed.add(c.id); saveDismissed(); render(); };
@@ -465,14 +567,32 @@ function card(c) {
   chip(money, "chip-funder" + (c.eu ? " is-eu" : ""), c.funder, "Funder");
   chip(money, "chip-type type-" + slug(c.type), c.type, "Type of call");
   chip(money, "chip-amount", c.amount, "Amount");
+  if (c.mode) chip(money, "chip-where " + (c.mode === "online" ? "where-online" : "where-in-person"),
+                   c.mode === "online" ? "Online" : `In person: ${c.location}`, "Where it takes place");
+  const opensLater = c.opens && c.opens > today;
+  if (opensLater) chip(money, "chip-opens", `Opens ${fmt(c.opens)}`, "The call is not open yet: applications start on this day");
   chip(when, "chip-deadline " + cd.cls, `Deadline ${fmt(c.deadline)}`, "Deadline");
   c.who.forEach(w => chip(when, "chip-who who-" + slug(w), w, "Who can apply"));
+  if (notes[c.id]) {
+    const n = chip(when, "chip-note", notes[c.id].length > 60 ? notes[c.id].slice(0, 57) + "…" : notes[c.id], "My note (click to edit): " + notes[c.id]);
+    n.onclick = () => openNote(c);
+    n.setAttribute("role", "button");
+  } else {
+    const b = document.createElement("button"); b.className = "note-add"; b.textContent = "+ note"; b.title = "Write a note on this call";
+    b.onclick = () => openNote(c); when.appendChild(b);
+  }
   if (newIds.has(c.id)) chip(when, "newtag", "NEW", "Appeared since my last visit");
   if (c.fit > 0) chip(when, "fit", `fit ${c.fit}`, "Fit with my keywords and research area (higher is better)");
   // where the call was found, when that is not obvious from the funder's name
   const src = (c.source || "").split(",")[0].trim().toLowerCase();
   if (src && src !== "sample" && !c.funder.toLowerCase().includes(src) && !(src === "eu portal" && c.eu))
     chip(when, "found", `found on ${c.source}`);
+  if (c.about) {
+    const d = document.createElement("details"); d.className = "about";
+    const sm = document.createElement("summary"); sm.textContent = "About";
+    const pEl = document.createElement("p"); pEl.textContent = c.about;
+    d.append(sm, pEl); el.querySelector(".tags").before(d);
+  }
   const tags = el.querySelector(".tags");
   c.keywords.forEach(k => {
     const b = document.createElement("button");
@@ -510,6 +630,19 @@ const DISMISSED = "callTracker.dismissed", SEEN = "callTracker.seen";
 const dismissed = new Set(JSON.parse(localStorage.getItem(DISMISSED) || "[]"));
 const saveDismissed = () => localStorage.setItem(DISMISSED, JSON.stringify([...dismissed]));
 let showDismissed = false, onlyNew = false;
+const picked = new Set();   // calls I ticked to share (kept while I change filters)
+function pickedCalls() {
+  const mine = CALLS.filter(c => picked.has(c.id));
+  const open = mine.filter(c => c.days >= 0).sort((a, b) => a.days - b.days);
+  const closed = mine.filter(c => c.days < 0).sort((a, b) => b.days - a.days);   // most recently closed first
+  return open.concat(closed);
+}
+function updatePickBar() {
+  const n = pickedCalls().length;
+  $("pickBar").hidden = n === 0;
+  $("pickCount").textContent = `${n} selected`;
+  document.body.classList.toggle("has-pickbar", n > 0);
+}
 const newIds = new Set();   // calls that appeared since my last visit (only tracked for the newest search results)
 function trackNew() {
   const raw = localStorage.getItem(SEEN), seen = raw ? new Set(JSON.parse(raw)) : null;
@@ -519,7 +652,7 @@ function trackNew() {
 }
 // "Other EU calls" = found by browsing all EU calls but not close to my field (fit score 0). Hidden unless I ask.
 let showOther = false;
-const isOther = c => c.scope === "browse" && (c.fit || 0) < 1;
+const isOther = c => c.scope === "other" || (c.scope === "browse" && (c.fit || 0) < 1);
 const fitHidden = c => isOther(c) && !showOther;
 const isShown = c => !hiddenBy(c) && !fitHidden(c) && (showDismissed || !dismissed.has(c.id));
 
@@ -669,6 +802,8 @@ function matches(c) {
   const t = $("fType").value, w = $("fWho").value, s = $("fStatus").value;
   if (t && c.type !== t) return false;
   if (w && !c.who.includes(w)) return false;
+  const wh = $("fWhere").value;
+  if (wh === "none" ? c.mode : wh && c.mode !== wh) return false;
   const f = $("fFunder").value;
   if (f === "__eu" && !c.eu) return false;
   if (f === "__noneu" && c.eu) return false;
@@ -679,7 +814,7 @@ function matches(c) {
   if (onlyNew && !newIds.has(c.id)) return false;
   const q = $("fSearch").value.trim().toLowerCase();
   if (q) {
-    const hay = [c.title, c.funder, c.source, c.type, c.keywords.join(" ")].join(" ").toLowerCase();
+    const hay = [c.title, c.funder, c.source, c.type, c.keywords.join(" "), c.about || "", c.location || ""].join(" ").toLowerCase();
     if (!q.split(/\s+/).every(w => hay.includes(w))) return false;
   }
   return true;
@@ -701,8 +836,16 @@ function fillFunders() {
   sel.value = opts.some(o => o[0] === keep) ? keep : "";
 }
 
+function fillWhere() {
+  const sel = $("fWhere"), keep = sel.value, base = CALLS.filter(isShown);
+  const n = m => base.filter(c => m === "none" ? !c.mode : c.mode === m).length;
+  const opts = [["", "All"], ["online", `Online (${n("online")})`], ["in person", `In person (${n("in person")})`], ["none", `Not stated (${n("none")})`]];
+  sel.replaceChildren(...opts.map(([v, t]) => Object.assign(document.createElement("option"), { value: v, textContent: t })));
+  sel.value = opts.some(o => o[0] === keep) ? keep : "";
+}
+
 function render() {
-  fillFunders();
+  fillFunders(); fillWhere();
   const shown = CALLS.filter(matches);
   const byFit = $("fSort").value === "fit";
   const open = shown.filter(c => c.days >= 0).sort((a, b) => (byFit ? (b.fit || 0) - (a.fit || 0) : 0) || a.days - b.days);
@@ -713,7 +856,7 @@ function render() {
   $("kwName").textContent = keyword;
   const hiddenCount = CALLS.filter(hiddenBy).length, otherCount = CALLS.filter(c => isOther(c) && !hiddenBy(c)).length;
   $("sourceInfo").textContent = `Showing: ${sourceLabel} (${CALLS.length} calls` + (hiddenCount ? `, ${hiddenCount} hidden as not my topics` : "")
-    + (otherCount && !showOther ? `, ${otherCount} other EU calls hidden` : "") + ")";
+    + (otherCount && !showOther ? `, ${otherCount} outside my field hidden` : "") + ")";
   $("otherToggle").hidden = !otherCount;
   $("otherCount").textContent = otherCount;
   const visibleBase = c => !hiddenBy(c) && !fitHidden(c);
@@ -730,6 +873,8 @@ function render() {
   if (!$("kwPanel").hidden) renderKeywordPanel();
   $("sampleNote").hidden = sourceLabel !== "made-up sample";
   renderSummary(open, closed);
+  updatePickBar();
+  renderSources();
 }
 
 // ---- summary dashboard (follows the current filters) ----
@@ -834,7 +979,7 @@ function renderKeywords(open) {
 }
 function wrap(el) { const d = document.createElement("div"); d.append(el); return d; }
 
-["fType", "fWho", "fStatus", "fFunder", "fSort"].forEach(id => $(id).onchange = render);
+["fType", "fWho", "fStatus", "fFunder", "fWhere", "fSort"].forEach(id => $(id).onchange = render);
 $("fOther").onchange = () => { showOther = $("fOther").checked; render(); };
 $("fDismissed").onchange = () => { showDismissed = $("fDismissed").checked; render(); };
 $("fNew").onchange = () => { onlyNew = $("fNew").checked; render(); };
@@ -849,9 +994,68 @@ $("csvFile").onchange = async e => {
 $("sampleBtn").onclick = () => {
   localStorage.removeItem(CSV_STORE);
   CALLS.length = 0; CALLS.push(...SAMPLE);
-  sourceLabel = "made-up sample"; $("loadMsg").hidden = true;
+  sourceLabel = "made-up sample"; currentSources = null; $("loadMsg").hidden = true;
   render();
 };
+// ---- notes: my own words on a call (saved in this browser) ----
+const NOTES = "callTracker.notes";
+const notes = JSON.parse(localStorage.getItem(NOTES) || "{}");
+let noteCall = null;
+function openNote(c) {
+  noteCall = c;
+  $("noteTitle").textContent = `Note: ${c.title}`.slice(0, 110);
+  $("noteText").value = notes[c.id] || "";
+  $("noteDelete").hidden = !notes[c.id];
+  $("noteDialog").showModal(); $("noteText").focus();
+}
+function saveNote(text) {
+  text = text.trim();
+  if (text) notes[noteCall.id] = text; else delete notes[noteCall.id];
+  localStorage.setItem(NOTES, JSON.stringify(notes));
+  $("noteDialog").close(); render();
+}
+$("noteSave").onclick = () => saveNote($("noteText").value);
+$("noteDelete").onclick = () => saveNote("");
+$("noteCancel").onclick = () => $("noteDialog").close();
+
+// ---- calendar file (.ics): deadlines to import into my own calendar ----
+const icsText = t => String(t).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+function icsFold(line) {   // a line is at most 75 bytes; continuation lines start with a space
+  const enc = new TextEncoder(), parts = [];
+  let cur = "", bytes = 0, limit = 75;
+  for (const ch of line) {
+    const n = enc.encode(ch).length;
+    if (bytes + n > limit) { parts.push(cur); cur = ""; bytes = 0; limit = 74; }
+    cur += ch; bytes += n;
+  }
+  parts.push(cur);
+  return parts.join("\r\n ");
+}
+function icsFor(calls) {
+  const d2 = n => String(n).padStart(2, "0");
+  const day = d => `${d.getFullYear()}${d2(d.getMonth() + 1)}${d2(d.getDate())}`;
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Call Tracker//EN", "CALSCALE:GREGORIAN"];
+  for (const c of calls) {
+    const next = new Date(c.deadline.getFullYear(), c.deadline.getMonth(), c.deadline.getDate() + 1);
+    const about = [`Funder: ${c.funder}${c.eu ? " (EU-funded)" : ""}`, `Type: ${c.type} · Amount: ${c.amount}`,
+      `Who can apply: ${c.who.join(", ") || "see call page"}`];
+    if (c.mode) about.push(`Where: ${c.mode === "online" ? "Online" : "In person: " + c.location}`);
+    if (c.opens && c.opens > today) about.push(`Opens: ${fmt(c.opens)}`);
+    if (notes[c.id]) about.push(`Note: ${notes[c.id]}`);
+    if (linkOf(c)) about.push(`Link: ${linkOf(c)}`);
+    lines.push("BEGIN:VEVENT", `UID:${String(c.id).replace(/[^A-Za-z0-9._:-]+/g, "-")}@call-tracker`, `DTSTAMP:${stamp}`,
+      `DTSTART;VALUE=DATE:${day(c.deadline)}`, `DTEND;VALUE=DATE:${day(next)}`, `SUMMARY:${icsText("Deadline: " + c.title)}`,
+      `DESCRIPTION:${icsText(about.join("\n"))}`);
+    if (linkOf(c)) lines.push(`URL:${linkOf(c)}`);
+    for (const [trigger, words] of [["-P7D", "in 7 days"], ["-P1D", "tomorrow"]])
+      lines.push("BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${icsText("Deadline " + words + ": " + c.title)}`, `TRIGGER:${trigger}`, "END:VALARM");
+    lines.push("END:VEVENT");
+  }
+  lines.push("END:VCALENDAR");
+  return lines.map(icsFold).join("\r\n") + "\r\n";
+}
+
 // ---- Share: a message with details, as an e-mail draft, a copy, or the system share sheet ----
 const MAIL_LIMIT = 1800;   // many mail programs cut very long links
 const dayText = c => `${fmt(c.deadline)} (${countdown(c.days).text})`;
@@ -863,14 +1067,18 @@ function oneMessage(c) {
     `Who can apply: ${c.who.join(", ") || "see call page"} · Amount: ${c.amount}`];
   if (c.keywords.length) lines.push(`Topics: ${c.keywords.join(", ")}`);
   if (status[c.id]) lines.push(`My status: ${status[c.id]}`);
+  if (notes[c.id]) lines.push(`My note: ${notes[c.id]}`);
+  if (c.mode) lines.push(`Where: ${c.mode === "online" ? "Online" : "In person: " + c.location}`);
+  if (c.opens && c.opens > today) lines.push(`Opens: ${fmt(c.opens)}`);
+  if (c.about) lines.push(`About: ${c.about}`);
   if (linkOf(c)) lines.push(`Link: ${linkOf(c)}`);
   return lines.join("\n");
 }
 
-function listMessage(calls) {
-  const items = calls.map((c, i) => `${i + 1}. ${c.title}\n   ${c.funder} · deadline ${dayText(c)}${status[c.id] ? " · " + status[c.id] : ""}` +
-    (linkOf(c) ? `\n   ${linkOf(c)}` : ""));
-  return `Funding calls to look at (${calls.length}), soonest deadline first:\n\n` + items.join("\n\n");
+function listMessage(calls, order = "soonest deadline first") {
+  const items = calls.map((c, i) => `${i + 1}. ${c.title}\n   ${c.funder} · deadline ${dayText(c)}${c.opens && c.opens > today ? " · opens " + fmt(c.opens) : ""}${status[c.id] ? " · " + status[c.id] : ""}` +
+    (notes[c.id] ? `\n   Note: ${notes[c.id]}` : "") + (linkOf(c) ? `\n   ${linkOf(c)}` : ""));
+  return `Funding calls to look at (${calls.length}), ${order}:\n\n` + items.join("\n\n");
 }
 
 function shareCandidates() {
@@ -878,7 +1086,7 @@ function shareCandidates() {
   const marked = open.filter(c => ["interesting", "applying"].includes(status[c.id]));
   const shownNow = CALLS.filter(matches).filter(c => c.days >= 0)
     .sort((a, b) => ($("fSort").value === "fit" ? (b.fit || 0) - (a.fit || 0) : 0) || a.days - b.days);
-  return { marked, shown: shownNow.slice(0, 10), shownTotal: shownNow.length };
+  return { selected: pickedCalls(), marked, shown: shownNow.slice(0, 10), shownTotal: shownNow.length };
 }
 
 let shareSubject = "", shareCtx = null;
@@ -901,10 +1109,12 @@ function refreshShareDraft() {
 }
 
 function fillShareFromScope() {
-  const { marked, shown } = shareCandidates();
-  const calls = $("shareScope").value === "marked" ? marked : shown;
+  const { selected, marked, shown } = shareCandidates();
+  const calls = { selected, marked, shown }[$("shareScope").value];
   shareSubject = `Funding calls to look at (${calls.length})`;
-  $("shareText").value = listMessage(calls);
+  // calls I selected or marked are listed by deadline; "shown now" follows the page's sort box
+  const order = $("shareScope").value === "shown" && $("fSort").value === "fit" ? "best fit first" : "soonest deadline first";
+  $("shareText").value = listMessage(calls, order);
   refreshShareDraft();
 }
 
@@ -913,18 +1123,23 @@ function openShare(ctx) {
   if (ctx.type === "one") {
     $("shareTitle").textContent = "Share this call";
     $("shareScopeRow").hidden = true;
+    $("shareHint").hidden = true;
     shareSubject = `Call: ${ctx.call.title} (deadline ${fmt(ctx.call.deadline)})`;
     $("shareText").value = oneMessage(ctx.call);
     refreshShareDraft();
   } else {
-    const { marked, shown, shownTotal } = shareCandidates();
+    const { selected, marked, shown, shownTotal } = shareCandidates();
     $("shareTitle").textContent = "Share a list of calls";
     $("shareScopeRow").hidden = false;
+    $("shareHint").hidden = selected.length > 0;
     $("shareScope").innerHTML = "";
-    $("shareScope").append(
-      Object.assign(document.createElement("option"), { value: "marked", textContent: `Calls I marked interesting or applying (${marked.length})` }),
-      Object.assign(document.createElement("option"), { value: "shown", textContent: `Open calls shown now (first ${shown.length} of ${shownTotal})` }));
-    $("shareScope").value = marked.length ? "marked" : "shown";
+    const opt = (value, textContent) => Object.assign(document.createElement("option"), { value, textContent });
+    const options = [];
+    if (selected.length) options.push(opt("selected", `Calls I selected (${selected.length})`));
+    options.push(opt("marked", `Calls I marked interesting or applying (${marked.length})`),
+                 opt("shown", `Open calls shown now (first ${shown.length} of ${shownTotal})`));
+    $("shareScope").append(...options);
+    $("shareScope").value = selected.length ? "selected" : marked.length ? "marked" : "shown";
     fillShareFromScope();
   }
   $("shareNative").hidden = typeof navigator.share !== "function";
@@ -932,6 +1147,9 @@ function openShare(ctx) {
 }
 
 $("shareListBtn").onclick = () => openShare({ type: "list" });
+$("pickShare").onclick = () => openShare({ type: "list" });
+$("pickAll").onclick = () => { CALLS.filter(matches).filter(c => c.days >= 0).forEach(c => picked.add(c.id)); render(); };
+$("pickClear").onclick = () => { picked.clear(); render(); };
 $("shareScope").onchange = fillShareFromScope;
 $("shareText").oninput = refreshShareDraft;
 $("shareClose").onclick = () => $("shareDialog").close();
@@ -941,6 +1159,17 @@ $("shareCopy").onclick = async () => {
   try { await navigator.clipboard.writeText(text); }
   catch { $("shareText").select(); document.execCommand("copy"); }
   $("shareMsg").textContent = "Copied. Paste it into a chat or an e-mail.";
+};
+$("shareIcs").onclick = () => {
+  const { selected, marked, shown } = shareCandidates();
+  const calls = shareCtx && shareCtx.type === "one" ? [shareCtx.call] : { selected, marked, shown }[$("shareScope").value] || [];
+  const upcoming = calls.filter(c => c.days >= 0), left = calls.length - upcoming.length;
+  if (!upcoming.length) { $("shareMsg").textContent = "No upcoming deadlines to put in a calendar."; return; }
+  const a = Object.assign(document.createElement("a"), { download: "call-deadlines.ics",
+    href: URL.createObjectURL(new Blob([icsFor(upcoming)], { type: "text/calendar" })) });
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+  $("shareMsg").textContent = `Calendar file downloaded: ${plural(upcoming.length, "deadline")}` +
+    (left ? `, ${plural(left, "closed call")} left out` : "") + ". Import it into your calendar.";
 };
 $("shareNative").onclick = async () => {
   try { await navigator.share({ title: shareSubject, text: $("shareText").value }); }
@@ -956,9 +1185,9 @@ function showRefresh(html, kind = "") {
   const m = $("refreshMsg"); m.innerHTML = html; m.className = "refreshmsg " + kind; m.hidden = false;
 }
 
-function useLive(text, generated) {
+function useLive(text, generated, sources = null) {
   const before = new Set(CALLS.map(c => c.id));
-  if (!useCSV(text, liveLabel(generated), false)) return null;
+  if (!useCSV(text, liveLabel(generated), false, sources)) return null;
   localStorage.removeItem(CSV_STORE);   // newest results win over an older manual file
   trackNew(); render();
   return CALLS.filter(c => !before.has(c.id) && c.days >= 0 && isShown(c)).length;
@@ -978,8 +1207,14 @@ async function pollRefresh() {
   if (st.exit_code !== 0) {
     return showRefresh(`Refresh had a problem (code ${st.exit_code}). The calls below are from the last good run.<pre>${esc(st.log.trim().split("\n").slice(-12).join("\n"))}</pre>`, "bad");
   }
-  const text = await (await fetch("live_calls.csv", { cache: "no-store" })).text();
-  const fresh = useLive(text, st.finished);
+  // the newest results (and the per-source report) come as live_calls.js: load it again
+  const fresh2 = await new Promise(resolve => {
+    const sc = document.createElement("script"); sc.src = "live_calls.js?t=" + Date.now();
+    sc.onload = () => { sc.remove(); resolve(window.LIVE_CALLS); }; sc.onerror = () => resolve(null);
+    document.head.appendChild(sc);
+  });
+  const text = fresh2 ? fresh2.csv : await (await fetch("live_calls.csv", { cache: "no-store" })).text();
+  const fresh = useLive(text, st.finished, fresh2 && fresh2.sources);
   const open = CALLS.filter(c => c.days >= 0 && isShown(c)).length;
   showRefresh(`Updated ${fmtTime(st.finished)}: ${plural(CALLS.length, "call")}, ${open} open` + (fresh ? `, <b>${fresh} new open</b> since before.` : ".") +
     ` <details style="display:inline"><summary>details</summary><pre>${esc(st.log.trim())}</pre></details>`, "ok");
@@ -998,7 +1233,7 @@ $("refreshBtn").onclick = async () => {
 const live = window.LIVE_CALLS;
 const manual = JSON.parse(localStorage.getItem(CSV_STORE) || "null");
 if (manual && (!live || (manual.loadedAt || "") > live.generated) && useCSV(manual.text, manual.name, false)) {}
-else if (live && useCSV(live.csv, liveLabel(live.generated), false)) { trackNew(); render(); }
+else if (live && useCSV(live.csv, liveLabel(live.generated), false, live.sources || null)) { trackNew(); render(); }
 else render();
 if (HELPER) fetch("/api/status", { cache: "no-store" }).then(r => r.json()).then(st => { if (st.running) pollRefresh(); }).catch(() => {});
 </script>

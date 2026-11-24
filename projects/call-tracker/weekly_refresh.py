@@ -35,7 +35,7 @@ def new_open_calls(old_rows, new_rows, today):
     return sorted(fresh, key=lambda r: (-int(r.get("fit") or 0), r["deadline"]))
 
 
-def summary_text(now, code, total, open_count, new, first_run, problem):
+def summary_text(now, code, total, open_count, new, first_run, problem, alerts=()):
     lines = [f"Call Tracker weekly refresh: {now.strftime('%A %d %b %Y, %H:%M')}"]
     if code == 0:
         lines.append(f"Search finished OK: {total} calls, {open_count} open.")
@@ -53,6 +53,9 @@ def summary_text(now, code, total, open_count, new, first_run, problem):
             lines.append(f"     {c['link']}")
         if len(new) > TOP_NEW:
             lines.append(f"  ... and {len(new) - TOP_NEW} more: open index.html to see them (they carry a NEW badge).")
+    if alerts:
+        lines.append("Needs a look (a new call may be open, or a source may have stopped working):")
+        lines += [f"  {a}" for a in alerts]
     lines.append("Open index.html to look at everything.")
     return "\n".join(lines) + "\n"
 
@@ -123,12 +126,13 @@ def main(argv=None):
     results = folder / "live_calls.csv"
     before = read_rows(results)
     now = datetime.datetime.now()
-    problem = ""
+    problem, alerts = "", []
     try:
         run = subprocess.run([sys.executable, str(folder / "fetch_calls.py")], cwd=folder,
                              capture_output=True, text=True, timeout=args.timeout)
         code, output = run.returncode, run.stdout + run.stderr
         problem = "\n".join(l for l in output.splitlines() if "PROBLEM" in l)
+        alerts = [l for l in output.splitlines() if l.startswith(("WATCH ALERT", "SOURCE WARNING"))]
     except subprocess.TimeoutExpired:
         code, output = 2, ""
         problem = f"The search took longer than {args.timeout} seconds and was stopped."
@@ -137,7 +141,7 @@ def main(argv=None):
     after = read_rows(results) or []
     new = new_open_calls(before or [], after, now.date()) if before is not None else []
     open_count = sum(r["deadline"] >= now.date().isoformat() for r in after)
-    text = summary_text(now, code, len(after), open_count, new, first_run=before is None, problem=problem)
+    text = summary_text(now, code, len(after), open_count, new, first_run=before is None, problem=problem, alerts=alerts)
     (folder / "weekly_summary.txt").write_text(text, encoding="utf-8")
     print(text)
     return code

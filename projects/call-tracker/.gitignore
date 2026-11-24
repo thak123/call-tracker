@@ -11,3 +11,4 @@ tests/fixtures/web/*.gz
 weekly_log.txt
 weekly_summary.txt
 weekly_cron.log
+eu_details_cache.json

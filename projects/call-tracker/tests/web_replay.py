@@ -58,6 +58,7 @@ def load_fetch_calls():
     fc.TODAY = FIXED_TODAY
     fc.SETTINGS = SETTINGS
     fc.MY_LIST = HERE / "fixtures" / "my_calls_test.csv"   # fixed list for the whole-run tests
+    fc.EU_CACHE = None                                     # tests never read or write my real cache
     return fc
 
 
@@ -82,8 +83,10 @@ def record(add_only=False):
         keywords, _ = fc.load_settings()
         report = {"lines": [], "problems": [], "no_date": []}
         for f in (fc.fetch_eu, fc.fetch_hrzz, fc.fetch_eufondovi, fc.fetch_ampeu, fc.fetch_unizg, fc.fetch_mzom,
-                  fc.fetch_uniri, fc.fetch_devpost, fc.fetch_eu_browse):
+                  fc.fetch_uniri, fc.fetch_devpost, fc.fetch_eu_browse, fc.check_watch):
             f(keywords, report)
+        eu_calls = fc.one_per_call(fc.fetch_eu_browse(keywords, report) + fc.fetch_eu(keywords, report))
+        fc.enrich_eu(eu_calls, keywords, report)   # records the EU topic detail pages
     finally:
         urllib.request.urlopen = real
     INDEX.write_text(json.dumps(index, indent=1, ensure_ascii=False))

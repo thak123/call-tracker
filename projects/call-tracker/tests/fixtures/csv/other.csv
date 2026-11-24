@@ -1,0 +1,6 @@
+id,title,funder,eu,source,fit,scope,type,deadline,opens,link,amount,who,keywords,about
+o1,National call no field word,HRZZ,,HRZZ,0,core,grant,2027-01-10,,https://example.com/o1,see call page,staff,,
+o2,School call the source judged off topic,EU funds,,eufondovi,5,other,grant,2027-01-11,,https://example.com/o2,see call page,staff,,
+o3,EU browse no fit,European Commission · Horizon Europe,yes,EU portal,0,browse,grant,2027-01-12,,https://example.com/o3,see call page,staff,,
+o4,EU browse some fit,European Commission · Horizon Europe,yes,EU portal,2,browse,grant,2027-01-13,,https://example.com/o4,see call page,staff,,
+o5,Hackathon the source judged off topic,Some Host,,Devpost,0,other,datathon,2027-01-14,,https://example.com/o5,no prize listed,students,,

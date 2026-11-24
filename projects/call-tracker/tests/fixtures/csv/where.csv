@@ -1,0 +1,5 @@
+id,title,funder,eu,source,fit,scope,type,deadline,opens,link,amount,who,keywords,about,mode,location
+w1,Online Hackathon,Host A,,Devpost,2,core,datathon,2027-01-10,,https://example.com/w1,no prize listed,students,,,online,
+w2,In Person Hackathon,Host B,,Devpost,2,core,datathon,2027-01-11,,https://example.com/w2,$500,students,,,in person,"Durham University, Entrepreneurs Durham"
+w3,National Call,HRZZ,,HRZZ,1,core,grant,2027-01-12,,https://example.com/w3,see call page,staff,,,,
+w4,Another Online One,Host C,,Devpost,1,core,datathon,2027-01-13,,https://example.com/w4,$100,students,,,online,

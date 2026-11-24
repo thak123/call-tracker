@@ -9,7 +9,7 @@ import fetch_calls as fc  # noqa: E402
 keywords, _ = fc.load_settings()
 report = {"lines": [], "problems": [], "no_date": []}
 for fetch in (fc.fetch_eu, fc.fetch_hrzz, fc.fetch_eufondovi, fc.fetch_ampeu, fc.fetch_unizg, fc.fetch_mzom, fc.fetch_uniri,
-              fc.fetch_devpost, fc.fetch_eu_browse):
+              fc.fetch_devpost, fc.fetch_eu_browse, fc.check_watch):
     fetch(keywords, report)
 print("\n".join(line for line in report["lines"] if "(none right now)" not in line))
 for p in report["problems"]:

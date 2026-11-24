@@ -1,0 +1,4 @@
+id,title,funder,eu,source,fit,scope,type,deadline,opens,link,amount,who,keywords,about
+d1,Forthcoming EU Call,European Commission · Horizon Europe,yes,EU portal,5,core,grant,2027-09-23,2027-05-13,https://example.com/d1,€3–4M per project · ~3 grants,staff;PhD,artificial intelligence,Projects should provide policymakers with a solid understanding of language tools in education and propose ethical guidelines.
+d2,Already Open EU Call,European Commission · Horizon Europe,yes,EU portal,3,core,grant,2027-03-01,2026-06-01,https://example.com/d2,€594M in total · ~373 grants,staff,,Funds excellent researchers starting their independent careers.
+d3,Call Without Details,Test Fund,,HRZZ,1,core,grant,2027-02-01,,https://example.com/d3,see call page,staff,,

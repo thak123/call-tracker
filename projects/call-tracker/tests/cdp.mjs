@@ -106,7 +106,8 @@ async function openPage(port, { width = 1300, height = 900, downloads } = {}) {
     },
     async text(selector) { return page.eval(`(e => e ? e.textContent.trim() : null)(document.querySelector(${JSON.stringify(selector)}))`); },
     async visible(selector) {
-      return page.eval(`(e => !!e && !e.closest("[hidden]") && e.getBoundingClientRect().height > 0)(document.querySelector(${JSON.stringify(selector)}))`);
+      // really on screen: displayed (not display:none, also through its parents), with a size, not invisible
+      return page.eval(`(e => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== "hidden" && e.getBoundingClientRect().height > 0)(document.querySelector(${JSON.stringify(selector)}))`);
     },
     async close() { ws.close(); await fetch(`http://127.0.0.1:${port}/json/close/${target.id}`); },
   };

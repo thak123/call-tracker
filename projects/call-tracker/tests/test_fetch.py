@@ -104,6 +104,7 @@ class B2Sources(unittest.TestCase):
 
     def test_eufondovi(self):
         calls, _ = run_source(fc.fetch_eufondovi)
+        everything, calls = calls, [c for c in calls if c["scope"] == "core"]
         self.assertEqual(len(calls), 9)
         for word in ("škol", "odobren", "izmjen", "obavijest"):
             self.assertFalse(any(word in t.lower() for t in titles(calls)), f"'{word}' left out")
@@ -127,6 +128,7 @@ class B2Sources(unittest.TestCase):
 
     def test_mzom(self):
         calls, _ = run_source(fc.fetch_mzom)
+        calls = [c for c in calls if c["scope"] == "core"]
         self.assertEqual(len(calls), 25)
         for word in ("lektor", "učitelj", "radno mjesto", "nabava", "rang-list"):
             self.assertFalse(any(word in t.lower() for t in titles(calls)), f"'{word}' left out")
@@ -144,6 +146,45 @@ class B2Sources(unittest.TestCase):
         self.assertEqual(yufethon["type"], "datathon")
         for c in calls:
             self.assertNotIn("UNIRI", c["keywords"], "source is not a keyword")
+
+
+class B11OutsideMyField(unittest.TestCase):
+    """Any source can mark a call as outside my field (scope "other"); job ads and notices are still dropped."""
+
+    NOISE = ("radno mjesto", "državnu službu", "(m/ž)", "odobren", "obavijest", "savjetovanj", "radionic", "rezultat")
+
+    def test_eufondovi_keeps_school_and_health_calls_as_other(self):
+        calls, _ = run_source(fc.fetch_eufondovi)
+        other = [c for c in calls if c["scope"] == "other"]
+        self.assertGreater(len(other), 10, "the school/health/other calls are kept, not thrown away")
+        self.assertEqual(len([c for c in calls if c["scope"] == "core"]), 9)
+        for c in calls:
+            self.assertFalse(any(n in c["title"].lower() for n in self.NOISE), c["title"])
+
+    def test_devpost_keeps_hackathons_that_are_not_about_ai_as_other(self):
+        calls, _ = run_source(fc.fetch_devpost)
+        self.assertEqual(len([c for c in calls if c["scope"] == "core"]), 28)
+        self.assertGreater(len([c for c in calls if c["scope"] == "other"]), 15)
+        self.assertEqual(len({c["id"] for c in calls}), len(calls))
+
+    def test_mzom_keeps_other_topics_but_drops_job_ads(self):
+        calls, _ = run_source(fc.fetch_mzom)
+        self.assertGreater(len([c for c in calls if c["scope"] == "other"]), 0, "calls about schools and minorities are kept as other")
+        for c in calls:
+            self.assertFalse(any(n in c["title"].lower() for n in ("radno mjesto", "državnu službu", "(m/ž)", "zapošljavanj")), c["title"])
+
+    def test_one_per_call_prefers_core_over_other(self):
+        mk = lambda scope: {"id": "x:1", "scope": scope, "deadline": D(2027, 1, 1), "title": "t"}
+        self.assertEqual(fc.one_per_call([mk("other"), mk("core")])[0]["scope"], "core")
+
+    def test_croatian_field_words_count_for_the_fit_score(self):
+        f = lambda t: fc.fit_score({"title": t, "id": "x:1", "keywords": []})
+        self.assertGreaterEqual(f("Natječaj za umjetnu inteligenciju u obrazovanju"), 2)
+        self.assertGreaterEqual(f("Poziv za istraživanje hrvatskog jezika"), 2)
+        self.assertGreaterEqual(f("Digitalne vještine građana"), 2)
+        self.assertGreaterEqual(f("Strojno prevođenje i obrada govora"), 2)
+        self.assertEqual(f("Javni poziv za dodjelu sredstava za sportaše"), 0)
+        self.assertEqual(f("Poziv za poljoprivredna gospodarstva"), 0)
 
 
 class B2bBrowseAndDevpost(unittest.TestCase):
@@ -180,6 +221,7 @@ class B2bBrowseAndDevpost(unittest.TestCase):
 
     def test_devpost(self):
         calls, report = run_source(fc.fetch_devpost)
+        calls = [c for c in calls if c["scope"] == "core"]
         self.assertEqual(len(calls), 28)
         self.assertTrue(all(c["type"] == "datathon" and c["who"] == "students" and c["source"] == "Devpost" for c in calls))
         self.assertTrue(all(c["link"].startswith("https://") and "?" not in c["link"] for c in calls))
@@ -278,8 +320,8 @@ class B3B5B6WholeRun(unittest.TestCase):
         data = json.loads(js[js.index("{"): js.rindex("}") + 1])
         self.assertEqual(data["csv"], (tmp / "live_calls.csv").read_text(encoding="utf-8"))
         self.assertEqual(list(rows[0].keys()), ["id", "title", "funder", "eu", "source", "fit", "scope", "type",
-                                                "deadline", "link", "amount", "who", "keywords"])
-        self.assertEqual({r["scope"] for r in rows}, {"core", "browse"})
+                                                "deadline", "link", "amount", "who", "keywords", "opens", "about", "mode", "location"])
+        self.assertTrue({"core", "browse", "other"} <= {r["scope"] for r in rows})
         mine = [r for r in rows if r["source"] == "My list"]
         self.assertEqual([r["title"] for r in mine], ["Test Shared Task"], "my hand-kept list is part of the results")
         browse = [r for r in rows if r["scope"] == "browse"]
@@ -372,3 +414,241 @@ class B7MyList(unittest.TestCase):
         self.assertGreaterEqual(len(calls), 3)
         for c in calls:
             self.assertTrue(c["link"].startswith("https://"), c["title"])
+
+
+class B8Watch(unittest.TestCase):
+    """Pages that announce a call later (COST Open Call): flag it when the 'closed' notice disappears."""
+
+    def run_watch(self, fail_hosts=(), page_text=None):
+        keywords, _ = fc.load_settings()
+        report = {"lines": [], "problems": [], "no_date": []}
+        old = fc.get_text
+        if page_text is not None:
+            fc.get_text = lambda url: page_text
+        try:
+            with replay(fail_hosts):
+                fc.check_watch(keywords, report)
+        finally:
+            fc.get_text = old
+        return report
+
+    def test_closed_page_gives_no_alert(self):
+        report = self.run_watch()
+        self.assertEqual(report.get("alerts", []), [])
+        self.assertIn("COST Open Call: still closed", report["lines"][0])
+        self.assertEqual(report["problems"], [])
+
+    def test_alert_when_the_closed_notice_is_gone(self):
+        report = self.run_watch(page_text="<p>The COST Open Call 2027 is open. Submit your proposal by 29 October 2027.</p>")
+        self.assertEqual(len(report["alerts"]), 1)
+        name, url = report["alerts"][0]
+        self.assertEqual(name, "COST Open Call")
+        self.assertTrue(url.startswith("https://www.cost.eu/"))
+        self.assertIn("may be open", report["lines"][0])
+
+    def test_site_down_is_a_problem_not_an_alert(self):
+        report = self.run_watch(fail_hosts=("cost.eu",))
+        self.assertEqual(report.get("alerts", []), [])
+        self.assertIn("Watch COST Open Call: could not read", report["problems"][0])
+
+    def test_whole_run_prints_alert_and_keeps_going(self):
+        out = io.StringIO()
+        old = fc.get_text
+        real = old
+        fc.get_text = lambda url: "<p>Open call is open now</p>" if "cost.eu" in url else real(url)
+        tmp = Path(tempfile.mkdtemp(prefix="ct-test-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        saved = fc.OUT, fc.OUT_JS
+        fc.OUT, fc.OUT_JS = tmp / "live_calls.csv", tmp / "live_calls.js"
+        try:
+            with replay(), contextlib.redirect_stdout(out):
+                try:
+                    fc.main()
+                except SystemExit:
+                    pass
+        finally:
+            fc.get_text = old
+            fc.OUT, fc.OUT_JS = saved
+        self.assertIn("WATCH ALERT: COST Open Call", out.getvalue())
+        self.assertTrue((tmp / "live_calls.csv").exists())
+
+
+class B9SourceHealth(unittest.TestCase):
+    """The Sources panel: how many calls each source gave, and whether it needs a look."""
+
+    def test_judge_source(self):
+        j = fc.judge_source
+        self.assertEqual(j("X", 5, 5, "")["status"], "ok")
+        self.assertEqual(j("X", 0, 0, "")["status"], "ok", "a source that was always empty is fine")
+        self.assertEqual(j("X", 0, 2, "")["status"], "ok", "small sources may be empty")
+        w = j("X", 0, 5, "")
+        self.assertEqual(w["status"], "warn"); self.assertIn("found 0 calls, last time 5", w["message"])
+        self.assertEqual(j("X", 3, 20, "")["status"], "warn", "far fewer than last time")
+        self.assertEqual(j("X", 12, 20, "")["status"], "ok", "somewhat fewer is normal")
+        p = j("X", 0, 5, "could not read x.org (timeout)")
+        self.assertEqual((p["status"], p["message"]), ("problem", "could not read x.org (timeout)"))
+        self.assertEqual(j("X", 4, None, "")["status"], "ok", "first run: nothing to compare with")
+
+    def run_main(self, fail_hosts=(), previous=None):
+        tmp = Path(tempfile.mkdtemp(prefix="ct-health-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        old = fc.OUT, fc.OUT_JS
+        fc.OUT, fc.OUT_JS = tmp / "live_calls.csv", tmp / "live_calls.js"
+        if previous is not None:
+            fc.OUT_JS.write_text("window.LIVE_CALLS = " + json.dumps({"generated": "x", "csv": "", "sources": previous}) + ";\n")
+        out = io.StringIO()
+        try:
+            with replay(fail_hosts), contextlib.redirect_stdout(out):
+                try:
+                    fc.main()
+                except SystemExit:
+                    pass
+        finally:
+            fc.OUT, fc.OUT_JS = old
+        js = (tmp / "live_calls.js").read_text(encoding="utf-8")
+        return json.loads(js[js.index("{"): js.rindex("}") + 1]), out.getvalue()
+
+    def test_every_source_is_listed_with_count_and_status(self):
+        data, out = self.run_main()
+        by = {s["name"]: s for s in data["sources"]}
+        for name in ("EU portal: my keywords", "EU portal: all open calls", "HRZZ", "eufondovi", "AMPEU", "UNIZG",
+                     "MZOM", "UNIRI", "Devpost", "My list"):
+            self.assertIn(name, by)
+        self.assertEqual(by["AMPEU"]["count"], 5)
+        self.assertEqual(by["AMPEU"]["status"], "ok")
+        self.assertTrue(by["AMPEU"]["url"].startswith("https://"))
+        self.assertEqual(by["UNIZG"]["count"], 0)
+        self.assertEqual(by["Watch: COST Open Call"]["status"], "ok")
+        self.assertTrue(all({"name", "status", "count", "message", "url"} <= set(s) for s in data["sources"]))
+
+    def test_failed_source_is_marked_and_others_are_fine(self):
+        data, out = self.run_main(fail_hosts=("ampeu.hr",))
+        by = {s["name"]: s for s in data["sources"]}
+        self.assertEqual(by["AMPEU"]["status"], "problem")
+        self.assertIn("could not read ampeu.hr", by["AMPEU"]["message"])
+        self.assertEqual(by["HRZZ"]["status"], "ok")
+
+    def test_a_source_that_went_quiet_is_flagged_against_the_last_run(self):
+        data, out = self.run_main(previous=[{"name": "AMPEU", "count": 12}, {"name": "HRZZ", "count": 4}])
+        by = {s["name"]: s for s in data["sources"]}
+        self.assertEqual(by["AMPEU"]["status"], "ok", "5 of 12 is fine")
+        data, out = self.run_main(previous=[{"name": "AMPEU", "count": 40}])
+        by = {s["name"]: s for s in data["sources"]}
+        self.assertEqual(by["AMPEU"]["status"], "warn")
+        self.assertIn("last time 40", by["AMPEU"]["message"])
+        self.assertIn("SOURCE WARNING: AMPEU", out)
+
+
+class B10EuDetails(unittest.TestCase):
+    """Description, budget and opening date of EU topics (from the portal's own details files)."""
+
+    SAMPLE = json.loads((Path(__file__).parent / "fixtures" / "eu_topic_sample.json").read_text(encoding="utf-8"))["TopicDetails"]
+
+    def test_parse_a_real_topic(self):
+        info = fc.parse_topic_details(self.SAMPLE, "HORIZON-CL2-2027-01-TRANSFO-05", D(2026, 11, 24))
+        self.assertEqual(info["amount"], "€3–4M per project · ~3 grants")
+        self.assertEqual(info["opens"], "2027-05-13")
+        self.assertLessEqual(len(info["about"]), 301)
+        self.assertNotIn("<", info["about"])
+        self.assertTrue(info["about"].strip())
+        self.assertIn("artificial intelligence", info["text"].lower())
+
+    def test_amount_formats(self):
+        f = fc.format_amount
+        self.assertEqual(f(14_000_000, 14_000_000, 3, 42_000_000), "€14M per project · ~3 grants")
+        self.assertEqual(f(3_000_000, 3_300_000, 3, 10_000_000), "€3–3.3M per project · ~3 grants")
+        self.assertEqual(f(0, 0, 373, 594_100_000), "€594M in total · ~373 grants")
+        self.assertEqual(f(500_000, 500_000, 0, 0), "€0.5M per project")
+        self.assertEqual(f(0, 0, 0, 0), "")
+
+    def test_opening_date_only_when_in_the_future(self):
+        d = json.loads(json.dumps(self.SAMPLE))
+        self.assertEqual(fc.parse_topic_details(d, "HORIZON-CL2-2027-01-TRANSFO-05", D(2027, 6, 1))["opens"], "", "already open")
+
+    def test_record_without_budget_is_fine(self):
+        d = {"identifier": "X", "description": "<p>Scope:</p><p>Only text here.</p>", "budgetOverviewJSONItem": {"budgetTopicActionMap": {}}, "actions": []}
+        info = fc.parse_topic_details(d, "X", D(2026, 11, 24))
+        self.assertEqual((info["amount"], info["opens"]), ("", ""))
+        self.assertEqual(info["about"], "Only text here.")
+
+    def test_description_keywords_count_less_than_title_keywords(self):
+        base = {"title": "Plain title", "id": "eu:X", "keywords": ["multilingual", "artificial intelligence"], "desc_only": ["artificial intelligence"]}
+        self.assertEqual(fc.fit_score(base), 3 + 2, "one keyword in the title (3), one only in the description (2)")
+
+    def enrich(self, calls, fail_hosts=(), cache=None):
+        keywords, _ = fc.load_settings()
+        report = {"lines": [], "problems": [], "no_date": []}
+        old = fc.EU_CACHE
+        fc.EU_CACHE = cache
+        try:
+            with replay(fail_hosts):
+                fc.enrich_eu(calls, keywords, report)
+        finally:
+            fc.EU_CACHE = old
+        return report
+
+    def browse_calls(self):
+        calls, _ = run_source(fc.fetch_eu_browse)
+        return fc.one_per_call(calls)
+
+    def test_enrich_adds_about_amount_opens_and_description_keywords(self):
+        calls = self.browse_calls()
+        report = self.enrich(calls)
+        with_about = [c for c in calls if c.get("about")]
+        self.assertGreater(len(with_about), len(calls) * 0.8, "most EU calls got a description")
+        self.assertTrue(any(c["amount"] != "see call page" for c in calls), "amounts filled in")
+        self.assertTrue(any(c.get("opens") for c in calls), "some calls are not open yet")
+        self.assertTrue(any(c.get("desc_only") for c in calls), "keywords found in descriptions")
+        self.assertIn("EU details:", report["lines"][0])
+        for c in calls:
+            if c.get("desc_only"):
+                self.assertTrue(set(c["desc_only"]) <= set(c["keywords"]))
+
+    def test_failures_are_counted_and_the_calls_stay(self):
+        calls = self.browse_calls()
+        n = len(calls)
+        report = self.enrich(calls, fail_hosts=("topicDetails",))
+        self.assertEqual(len(calls), n)
+        self.assertFalse(any(c.get("about") for c in calls))
+        self.assertIn("failed", report["lines"][0])
+
+    def test_cache_is_used_the_second_time(self):
+        tmp = Path(tempfile.mkdtemp(prefix="ct-cache-")); self.addCleanup(shutil.rmtree, tmp, True)
+        cache = tmp / "eu_details_cache.json"
+        first = self.browse_calls()[:20]
+        self.enrich(first, cache=cache)
+        self.assertTrue(cache.exists())
+        second = self.browse_calls()[:20]
+        report = self.enrich(second, fail_hosts=("topicDetails",), cache=cache)   # network "down": answers come from the cache
+        self.assertEqual([c.get("about") for c in second], [c.get("about") for c in first])
+        self.assertIn("from the saved copy", report["lines"][0])
+
+
+class B12HackathonPlace(unittest.TestCase):
+    """Where a hackathon takes place: online or in person (with the venue as Devpost writes it)."""
+
+    def test_place_of(self):
+        f = fc.place_of
+        self.assertEqual(f({"icon": "globe", "location": "Online"}), ("online", ""))
+        self.assertEqual(f({"icon": "map-marker-alt", "location": "REMOTE"}), ("online", ""), "'remote' means online")
+        self.assertEqual(f({"icon": "map-marker-alt", "location": "Durham University, Entrepreneurs Durham"}),
+                         ("in person", "Durham University, Entrepreneurs Durham"))
+        self.assertEqual(f({"icon": "map-marker-alt", "location": "OJone Building, Bengaluru. "}), ("in person", "OJone Building, Bengaluru"))
+        self.assertEqual(f({"icon": "globe", "location": "Virtual / Worldwide"}), ("online", ""), "a globe icon means online")
+        self.assertEqual(f(None), ("", ""))
+        self.assertEqual(f({}), ("", ""))
+
+    def test_devpost_rows_carry_the_place(self):
+        calls, _ = run_source(fc.fetch_devpost)
+        modes = {c["mode"] for c in calls}
+        self.assertEqual(modes, {"online", "in person"})
+        online = [c for c in calls if c["mode"] == "online"]
+        in_person = [c for c in calls if c["mode"] == "in person"]
+        self.assertGreater(len(online), 40)
+        self.assertGreater(len(in_person), 0)
+        self.assertTrue(all(c["location"] for c in in_person), "a venue for every in-person event")
+        self.assertTrue(all(c["location"] == "" for c in online))
+
+    def test_other_sources_do_not_claim_a_place(self):
+        calls, _ = run_source(fc.fetch_hrzz)
+        self.assertTrue(all(c.get("mode", "") == "" for c in calls))

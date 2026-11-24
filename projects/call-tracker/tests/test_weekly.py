@@ -63,6 +63,23 @@ class D1NewCalls(unittest.TestCase):
                      "[fit 5] Brand new open", "Fund X", "deadline 2099-01-31", "https://example.com/c"):
             self.assertIn(part, text)
 
+    def test_summary_lists_pages_to_look_at(self):
+        text = wr.summary_text(datetime.datetime(2026, 11, 30, 8, 0), 0, 10, 5, [], first_run=False, problem="",
+                               alerts=["WATCH ALERT: COST Open Call: the 'closed' notice is gone, a new call may be open: https://www.cost.eu/x",
+                                       "SOURCE WARNING: AMPEU: found 0 calls, last time 5: the page may have changed"])
+        self.assertIn("Needs a look", text)
+        self.assertIn("COST Open Call", text)
+        self.assertIn("AMPEU: found 0 calls", text)
+
+    def test_runner_picks_the_alert_from_the_search_output(self):
+        d = Path(tempfile.mkdtemp(prefix="ct-weekly-")); self.addCleanup(shutil.rmtree, d, True)
+        (d / "fetch_calls.py").write_text('print("WATCH ALERT: COST Open Call: a new call may be open: https://x")\nprint("SOURCE WARNING: AMPEU: found 0 calls, last time 5")\n')
+        write_csv(d / "live_calls.csv", [row("a", "Old open")])
+        self.assertEqual(wr.main(["--dir", str(d)]), 0, "an alert is not a failure")
+        self.assertIn("COST Open Call", (d / "weekly_summary.txt").read_text())
+        self.assertIn("Needs a look", (d / "weekly_summary.txt").read_text())
+        self.assertIn("AMPEU: found 0 calls", (d / "weekly_summary.txt").read_text())
+
     def test_summary_first_run_and_problem(self):
         first = wr.summary_text(datetime.datetime(2026, 11, 30, 8, 0), 0, 10, 5, [], first_run=True, problem="")
         self.assertIn("First run", first)

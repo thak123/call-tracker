@@ -16,7 +16,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 HERE = Path(__file__).parent
-HOST, PORT = "127.0.0.1", 8765
+import os
+HOST, PORT = "127.0.0.1", int(os.environ.get("CT_PORT", "8765"))   # CT_PORT: used by the tests
 ALLOWED_HOSTS = {f"127.0.0.1:{PORT}", f"localhost:{PORT}"}
 
 state = {"running": False, "started": None, "finished": None, "exit_code": None, "log": ""}

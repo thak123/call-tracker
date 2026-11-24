@@ -41,6 +41,8 @@
   .tags { display: flex; flex-wrap: wrap; gap: 6px; }
   .tag { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #e8eef5; color: var(--accent); border: none; }
   .tag:hover { background: #d3e0ee; }
+  .eu { display: inline-block; font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 4px; background: #1d3f8a; color: #ffd93b; margin-right: 4px; vertical-align: 1px; }
+  .found { color: var(--muted); font-size: 12px; }
   .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 4px; }
   .row a { color: var(--accent); font-size: 13px; }
   .empty { color: var(--muted); font-style: italic; }
@@ -75,7 +77,7 @@
   .kw .n { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
   .tip { position: fixed; pointer-events: none; background: #1f2328; color: #fff; font-size: 12px; padding: 6px 9px; border-radius: 6px; line-height: 1.4; display: none; z-index: 10; max-width: 260px; }
   @media (max-width: 1000px) { .panels { grid-template-columns: 1fr; } }
-  @media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, 1fr); } .source { margin-left: 0; justify-content: flex-start; } }
   .refreshmsg { max-width: calc(1240px - 56px); margin: 10px auto 0; padding: 8px 12px; border-radius: 6px; font-size: 13px; background: #e8eef5; color: #1d3f63; }
   .refreshmsg.ok { background: #e8f5e9; color: #1b5e20; }
   .refreshmsg.bad { background: #fbe9e7; color: #8c1d18; }
@@ -95,6 +97,7 @@
   .kwstate { font-size: 13px; color: var(--muted); }
   .kwstate.dirty { color: #8a4b00; font-weight: 600; }
   button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary-outline { border-color: var(--accent); color: var(--accent); font-weight: 600; }
   button.primary:disabled, .kwactions button:disabled { opacity: .45; cursor: default; }
   .kwcols { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--line); border-top: none; border-radius: 0 0 10px 10px; }
   .kwcol { padding: 8px 16px 14px; min-width: 0; }
@@ -104,7 +107,8 @@
   .kwadd { display: flex; gap: 6px; }
   .kwadd input, .kwlist input { flex: 1; min-width: 0; font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; }
   .kwerr { color: var(--soon); font-size: 12px; margin: 4px 0 0; }
-  .kwlist { list-style: none; margin: 10px 0 0; padding: 0; }
+  .kwlist { list-style: none; margin: 10px 0 0; padding: 0 4px 0 0; max-height: 360px; overflow-y: auto; }
+  .kwhead { position: sticky; top: 0; z-index: 2; }
   .kwlist li { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-top: 1px solid #f0efec; }
   .kwlist li .word { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .kwlist li .uses { font-size: 12px; color: var(--muted); white-space: nowrap; }
@@ -112,7 +116,7 @@
   .kwlist li button.del { color: var(--soon); }
   .kwlist .none { color: var(--muted); font-style: italic; border: none; }
   @media (max-width: 760px) { .kwcols { grid-template-columns: 1fr; } .kwcol + .kwcol { border-left: none; border-top: 1px solid var(--line); } }
-  .source { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .source { flex-wrap: wrap; justify-content: flex-end; margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
   .loadmsg { margin: 10px auto 0; max-width: calc(1240px - 56px); padding: 8px 12px; border-radius: 6px; background: #fff4e0; color: #6b4200; font-size: 13px; }
 </style>
 </head>
@@ -134,6 +138,9 @@
       <option value="">All</option>
       <option>staff</option><option>PhD</option><option>students</option>
     </select>
+  </label>
+  <label>Funder
+    <select id="fFunder"><option value="">All</option></select>
   </label>
   <label>My status
     <select id="fStatus">
@@ -165,6 +172,7 @@
       <span id="kwState" class="kwstate"></span>
       <button id="kwUndo">Undo changes</button>
       <button id="kwSave" class="primary">Save to keywords.js</button>
+      <button id="kwClose" title="Close (Esc)">← Back to calls</button>
     </div>
   </div>
   <div class="kwcols">
@@ -237,7 +245,7 @@ const CALLS = [
 
 const DAY = 86400000;
 const today = new Date(); today.setHours(0, 0, 0, 0);
-CALLS.forEach(c => { c.deadline = new Date(today.getTime() + c.days * DAY); c.link = "https://example.com/calls/" + c.id; });
+CALLS.forEach(c => { c.deadline = new Date(today.getTime() + c.days * DAY); c.link = "https://example.com/calls/" + c.id; c.source = "sample"; c.eu = false; });
 const SAMPLE = CALLS.slice();
 
 // ---- CSV loading ----
@@ -302,6 +310,7 @@ function callsFromCSV(text) {
       link: get(r, "link") || "#",
       amount: get(r, "amount") || "amount not given",
       who: list(get(r, "who")), keywords: list(get(r, "keywords")),
+      source: get(r, "source"), eu: /^(yes|true|1|da)$/i.test(get(r, "eu")),
     });
   });
   return { calls, problems };
@@ -353,7 +362,12 @@ function card(c) {
   el.querySelector(".title").textContent = c.title;
   const metas = el.querySelectorAll(".meta");
   metas[0].textContent = `${c.funder} · ${c.type} · ${c.amount}`;
+  if (c.eu) metas[0].insertAdjacentHTML("afterbegin", '<span class="eu" title="EU-funded programme">EU</span>');
   metas[1].textContent = `Deadline ${fmt(c.deadline)} · For: ${c.who.join(", ")}`;
+  // where the call was found, when that is not obvious from the funder's name
+  const src = (c.source || "").split(",")[0].trim().toLowerCase();
+  if (src && src !== "sample" && !c.funder.toLowerCase().includes(src) && !(src === "eu portal" && c.eu))
+    metas[1].insertAdjacentHTML("beforeend", ` <span class="found">· found on ${esc(c.source)}</span>`);
   const tags = el.querySelector(".tags");
   c.keywords.forEach(k => {
     const b = document.createElement("button");
@@ -444,7 +458,10 @@ function startEdit(li, list, i) {
   };
   li.querySelector(".ok").onclick = commit;
   li.querySelector(".cancel").onclick = () => { err.hidden = true; renderKeywordPanel(); };
-  input.onkeydown = e => { if (e.key === "Enter") commit(); if (e.key === "Escape") li.querySelector(".cancel").click(); };
+  input.onkeydown = e => {
+    if (e.key === "Enter") commit();
+    if (e.key === "Escape") { e.stopPropagation(); li.querySelector(".cancel").click(); }
+  };
 }
 
 document.querySelectorAll(".kwcol").forEach(col => {
@@ -495,17 +512,44 @@ $("kwSave").onclick = async () => {
   done("Downloaded keywords.js: move it into the call-tracker folder, replacing the old one");
 };
 $("kwUndo").onclick = () => { settings = JSON.parse(savedKw); changeSettings(); };
-$("kwToggle").onclick = () => {
-  const p = $("kwPanel"); p.hidden = !p.hidden;
-  $("kwToggle").setAttribute("aria-expanded", String(!p.hidden));
-  if (!p.hidden) renderKeywordPanel();
-};
+// Open/close the keyword panel. Opening adds a history step, so the browser's Back button closes it too.
+function showPanel(open) {
+  const p = $("kwPanel");
+  p.hidden = !open;
+  $("kwToggle").setAttribute("aria-expanded", String(open));
+  $("kwToggle").classList.toggle("primary-outline", open);
+  if (open) { renderKeywordPanel(); p.scrollIntoView({ block: "start" }); p.querySelector(".kwadd input").focus({ preventScroll: true }); }
+  else { scrollTo({ top: 0 }); $("kwToggle").focus({ preventScroll: true }); }
+}
+function openPanel() {
+  if (!$("kwPanel").hidden) return;
+  if (location.hash !== "#keywords") history.pushState({ kwPanel: true }, "", "#keywords");
+  showPanel(true);
+}
+function closePanel() {
+  if ($("kwPanel").hidden) return;
+  if (history.state && history.state.kwPanel) history.back();   // popstate below hides it
+  else { history.replaceState(null, "", location.pathname + location.search); showPanel(false); }
+}
+$("kwToggle").onclick = () => ($("kwPanel").hidden ? openPanel() : closePanel());
+$("kwClose").onclick = closePanel;
+addEventListener("popstate", () => showPanel(location.hash === "#keywords"));
+addEventListener("keydown", e => {
+  if (e.key !== "Escape" || $("kwPanel").hidden) return;
+  if (e.target.closest && e.target.closest(".kwlist li")) return;   // Esc inside an edit only cancels the edit
+  closePanel();
+});
+if (location.hash === "#keywords") showPanel(true);
 
 function matches(c) {
   if (hiddenBy(c)) return false;
   const t = $("fType").value, w = $("fWho").value, s = $("fStatus").value;
   if (t && c.type !== t) return false;
   if (w && !c.who.includes(w)) return false;
+  const f = $("fFunder").value;
+  if (f === "__eu" && !c.eu) return false;
+  if (f === "__noneu" && c.eu) return false;
+  if (f && !f.startsWith("__") && c.funder !== f) return false;
   if (s === "none" && status[c.id]) return false;
   if (s && s !== "none" && status[c.id] !== s) return false;
   if (keyword && !c.keywords.includes(keyword)) return false;
@@ -518,7 +562,18 @@ function fill(listEl, countEl, items) {
   countEl.textContent = `(${items.length})`;
 }
 
+function fillFunders() {
+  const sel = $("fFunder"), keep = sel.value, count = {};
+  CALLS.filter(c => !hiddenBy(c)).forEach(c => count[c.funder] = (count[c.funder] || 0) + 1);
+  const eu = CALLS.filter(c => c.eu && !hiddenBy(c)).length, all = CALLS.filter(c => !hiddenBy(c)).length;
+  const opts = [["", "All"], ["__eu", `EU-funded only (${eu})`], ["__noneu", `Not EU-funded (${all - eu})`]]
+    .concat(Object.keys(count).sort((a, b) => a.localeCompare(b)).map(f => [f, `${f} (${count[f]})`]));
+  sel.replaceChildren(...opts.map(([v, t]) => Object.assign(document.createElement("option"), { value: v, textContent: t })));
+  sel.value = opts.some(o => o[0] === keep) ? keep : "";
+}
+
 function render() {
+  fillFunders();
   const shown = CALLS.filter(matches);
   const open = shown.filter(c => c.days >= 0).sort((a, b) => a.days - b.days);
   const closed = shown.filter(c => c.days < 0).sort((a, b) => b.days - a.days);
@@ -635,7 +690,7 @@ function renderKeywords(open) {
 }
 function wrap(el) { const d = document.createElement("div"); d.append(el); return d; }
 
-["fType", "fWho", "fStatus"].forEach(id => $(id).onchange = render);
+["fType", "fWho", "fStatus", "fFunder"].forEach(id => $(id).onchange = render);
 $("kwClear").onclick = () => { keyword = ""; render(); };
 $("loadBtn").onclick = () => $("csvFile").click();
 $("csvFile").onchange = async e => {
@@ -662,7 +717,7 @@ function useLive(text, generated) {
   const before = new Set(CALLS.map(c => c.id));
   if (!useCSV(text, liveLabel(generated), false)) return null;
   localStorage.removeItem(CSV_STORE);   // newest results win over an older manual file
-  return CALLS.filter(c => !before.has(c.id) && c.days >= 0).length;
+  return CALLS.filter(c => !before.has(c.id) && c.days >= 0 && !hiddenBy(c)).length;
 }
 
 async function pollRefresh() {
@@ -681,7 +736,7 @@ async function pollRefresh() {
   }
   const text = await (await fetch("live_calls.csv", { cache: "no-store" })).text();
   const fresh = useLive(text, st.finished);
-  const open = CALLS.filter(c => c.days >= 0).length;
+  const open = CALLS.filter(c => c.days >= 0 && !hiddenBy(c)).length;
   showRefresh(`Updated ${fmtTime(st.finished)}: ${plural(CALLS.length, "call")}, ${open} open` + (fresh ? `, <b>${fresh} new open</b> since before.` : ".") +
     ` <details style="display:inline"><summary>details</summary><pre>${esc(st.log.trim())}</pre></details>`, "ok");
 }

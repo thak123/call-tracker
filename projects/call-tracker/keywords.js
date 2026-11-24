@@ -2,15 +2,45 @@
 // or edit the lists below by hand. Both the page and fetch_calls.py read this file.
 window.CALL_TRACKER_SETTINGS = {
   "keywords": [
-    "artificial intelligence",
     "natural language processing",
-    "language acquisition",
+    "computational linguistics",
     "language technologies",
-    "multilingual",
+    "language technology",
     "large language models",
+    "language models",
+    "generative AI",
+    "artificial intelligence",
+    "machine learning",
+    "deep learning",
+    "machine translation",
+    "speech recognition",
+    "speech technology",
+    "multilingual",
+    "low-resource languages",
     "sentiment analysis",
+    "text mining",
+    "information extraction",
+    "question answering",
+    "dialogue systems",
+    "conversational agents",
+    "corpus linguistics",
+    "language resources",
     "dataset creation",
-    "benchmarking"
+    "benchmarking",
+    "trustworthy AI",
+    "explainable AI",
+    "hate speech",
+    "disinformation",
+    "digital humanities",
+    "language acquisition",
+    "language learning",
+    "obrada prirodnog jezika",
+    "umjetna inteligencija",
+    "jezične tehnologije",
+    "računalna lingvistika",
+    "strojno učenje",
+    "strojno prevođenje",
+    "hrvatski jezik"
   ],
   "exclude": [
     "environmental",
@@ -22,6 +52,7 @@ window.CALL_TRACKER_SETTINGS = {
     "nuclear",
     "industrial",
     "transport",
-    "quantum"
+    "quantum",
+    "space"
   ]
 };

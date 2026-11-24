@@ -10,7 +10,9 @@ One page where I see open research funding calls, third-party calls, competition
 - My status per call: interesting · applying · skipped. Saved in the browser.
 - Countdown on every open call; open calls sorted by deadline.
 - Separate section "Check in the future (already closed)" for calls closed in the last year.
-- Filters: type, who can apply, status, keyword (click a tag or a bar in the keyword chart).
+- Filters: type, who can apply, **funder** (incl. "EU-funded only" / "Not EU-funded"), status, keyword (click a tag or a bar in the keyword chart).
+- Each card shows the funder (read from the call text), an **EU** badge for EU programmes, and where the call was found.
+- Keyword panel closes with "← Back to calls", Esc, the browser's Back button, or "My keywords".
 - Summary: four numbers (open, closing within 30 days, applying, closed) and two charts (deadlines per month by type, open calls per keyword). They follow the filters.
 - Keyword editor ("My keywords"): add, edit, delete "Search for" keywords and "Not my topics". Not-my-topics hide matching calls right away.
 - "Load calls.csv…" for my own spreadsheet (comma or semicolon, dates like 2027-01-15 or 15.1.2027).
@@ -21,6 +23,9 @@ One page where I see open research funding calls, third-party calls, competition
 - eufondovi.gov.hr (incl. HAMAG-BICRO): research/innovation calls only; results, amendments, school calls and notices left out.
 - AMPEU: Erasmus+, CEEPUS, bilateral mobility and scholarships.
 - UNIZG: open research funding calls page.
+- MZOM: science & international calls (no job ads, procurement, notices).
+- UNIRI: news about calls, scholarships and competitions (no job ads or event reports).
+- Keywords hold only my topics; the funder is read from the call text (e.g. ERC, HRZZ, Fulbright); the same call from two sites becomes one.
 - Calls whose title contains a "Not my topics" word are left out and listed in the report.
 - Posts without a clear deadline are listed under "Check by hand".
 
@@ -46,9 +51,8 @@ One page where I see open research funding calls, third-party calls, competition
 
 ## Next
 
-1. Add MZOM, UNIRI and fondovieu.gov.hr.
-2. Run the search automatically every Monday.
-3. Not possible right now: Zaklada Adris (site not reachable), UNIST (few research calls).
+1. Run the search automatically every Monday.
+2. Left out on purpose: fondovieu.gov.hr (terms forbid automated use), Zaklada Adris (not reachable), UNIST (few research calls).
 
 ## Done when
 
@@ -57,3 +61,5 @@ One page where I see open research funding calls, third-party calls, competition
 3. Closed calls show up only in "Check in the future (already closed)".
 4. `python3 fetch_calls.py` finishes without "PROBLEM" lines and reports a count for every source.
 5. With `serve.py` running, "Refresh calls" updates the page by itself within a few minutes.
+
+6. `python3 run_tests.py` shows PASS for Parts A, B and C (49 tests); `--live` also checks the real websites.

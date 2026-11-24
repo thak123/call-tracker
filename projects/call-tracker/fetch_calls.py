@@ -9,6 +9,9 @@ Sources (public data only, no personal data is sent):
   - eufondovi.gov.hr: research/innovation calls from EU funds in Croatia (incl. HAMAG-BICRO)
   - AMPEU: Erasmus+, CEEPUS, bilateral mobility and scholarship calls (ampeu.hr/natjecaji)
   - UNIZG: University of Zagreb "Otvoreni natječaji" research funding page
+  - MZOM: Ministry of Science calls (science & technology, international cooperation; no job ads)
+  - UNIRI: University of Rijeka news about calls, scholarships and competitions (no job ads)
+Left out on purpose: fondovieu.gov.hr (its terms forbid automated use), Zaklada Adris (not reachable).
 My keywords and "not my topics" live in keywords.js (edit them on the page).
 """
 import csv
@@ -84,7 +87,9 @@ def eu_row(meta):
     deadline = upcoming[0] if upcoming else dates[-1]   # next deadline, else the last one
     if too_old(deadline):
         return None
-    return {"id": "eu:" + ident, "title": title, "funder": "European Commission · " + ident.split("-")[0],
+    prog = {"HORIZON": "Horizon Europe", "ERC": "ERC", "DIGITAL": "Digital Europe", "EU4H": "EU4Health",
+            "LIFE": "LIFE", "CREA": "Creative Europe", "ERASMUS": "Erasmus+", "CERV": "CERV"}.get(ident.split("-")[0], ident.split("-")[0])
+    return {"id": "eu:" + ident, "title": title, "funder": "European Commission · " + prog, "eu": True, "source": "EU portal",
             "type": EU_TYPES.get(eu_first(meta, "type"), "grant"), "deadline": deadline,
             "link": EU_PORTAL + ident, "amount": "see call page", "who": "staff;PhD", "keywords": []}
 
@@ -195,8 +200,9 @@ def fetch_hrzz(keywords, report):
             continue
         if too_old(deadline):
             continue
-        tags = ["HRZZ"] + [k for k in keywords if k.lower() in (title + " " + text).lower()]
-        calls.append({"id": f"hrzz:{p['id']}", "title": title, "funder": "HRZZ (Croatian Science Foundation)",
+        tags = tags_for(title + " " + text, keywords)
+        funder, eu = detect_funder(title, text, "HRZZ (Croatian Science Foundation)")
+        calls.append({"id": f"hrzz:{p['id']}", "title": title, "funder": funder, "eu": eu, "source": "HRZZ",
                       "type": "grant", "deadline": deadline, "link": p["link"],
                       "amount": "see call page", "who": "staff;PhD", "keywords": tags})
     report["lines"].append(f"  HRZZ: {len(calls)} calls with a deadline")
@@ -211,9 +217,49 @@ def get_text(url):
         return r.read().decode("utf-8", "replace")
 
 
-def tags_for(text, keywords, source):
+def tags_for(text, keywords):
+    """Only MY keywords (topics) that appear in the call text. Sources and funders are separate fields."""
     low = text.lower()
-    return [source] + [k for k in keywords if k.lower() in low]
+    return [k for k in keywords if k.lower() in low]
+
+
+# Who pays: read from the call text. First match in the title wins, otherwise the earliest match in the text.
+# (name, pattern, EU-funded?)
+FUNDERS = [
+    ("European Research Council (ERC)", r"\bERC\b|European Research Council|Europsk\w+ istraživačk\w+ vijeć", True),
+    ("European Commission · MSCA", r"\bMSCA\b|Marie Sk\w+[- ]Curie", True),
+    ("European Commission · Horizon Europe", r"Horizon Europe|Obzor\w* Europ\w*|\bHORIZON\b|Europsk\w+ inovacijsk\w+ vijeć|\bEIC\b", True),
+    ("European Commission · Erasmus+", r"Erasmus\s*\+|\bErasmus\b", True),
+    ("European Commission · Creative Europe", r"Creative Europe|Kreativn\w+ Europ", True),
+    ("European Commission · Digital Europe", r"Digital Europe|Digitaln\w+ Europ|\bEDIH", True),
+    ("Interreg (EU)", r"Interreg", True),
+    ("EU funds · NPOO", r"\bNPOO\b|Nacionaln\w+ plan\w* oporavka", True),
+    ("EU funds · ESF+", r"ESF\s*\+|Europsk\w+ socijaln\w+ fond", True),
+    ("EU funds · EFRR", r"\bEFRR\b|\bERDF\b|Europsk\w+ fond\w* za regionalni razvoj", True),
+    ("EU · STEP", r"\bSTEP\b", True),
+    ("EU · COST", r"\bCOST\b", True),
+    ("HRZZ (Croatian Science Foundation)", r"\bHRZZ\w*|Hrvatsk\w+ zaklad\w+ za znanost", False),
+    ("HAMAG-BICRO", r"HAMAG", False),
+    ("European Space Agency (ESA)", r"\bESA\b|Europsk\w+ svemirsk\w+ agencij", False),
+    ("HAZU", r"\bHAZU\b|Hrvatsk\w+ akademij\w+ znanosti", False),
+    ("Fulbright", r"Fulbright", False),
+    ("DAAD", r"\bDAAD\b", False),
+    ("YUFE alliance", r"\bYUFE", False),
+    ("Foreign government scholarship", r"stipendij\w*\s+(?:\w+\s+){0,4}(?:Vlad\w+|Konfederacij\w+|Držav\w+|Republik\w+|Kraljevin\w+)", False),
+    ("MZOM (Ministry of Science)", r"Ministarstv\w+ znanosti", False),
+    ("AMPEU", r"\bAMPEU\b|Agencij\w+ za mobilnost", False),
+    ("City of Rijeka / PGŽ", r"Grad\w* Rijek\w*|\bPGŽ|Primorsko-goransk", False),
+]
+
+
+def detect_funder(title, text, default, default_eu=False):
+    """Return (funder, eu_funded) from the call's own words; fall back to the site it was found on."""
+    for where in (title, text[:2000]):
+        hits = [(m.start(), name, eu) for name, pat, eu in FUNDERS for m in [re.search(pat, where)] if m]
+        if hits:
+            _, name, eu = min(hits)
+            return name, eu
+    return default, default_eu
 
 
 # ---------------------------------------------------------------- eufondovi.gov.hr
@@ -259,9 +305,10 @@ def fetch_eufondovi(keywords, report):
             continue
         if too_old(deadline):
             continue
-        calls.append({"id": f"euf:{p['id']}", "title": title, "funder": "EU fondovi Hrvatska (eufondovi.gov.hr)",
+        funder, eu = detect_funder(title, text, "EU funds (Croatia)", True)
+        calls.append({"id": f"euf:{p['id']}", "title": title, "funder": funder, "eu": eu, "source": "eufondovi",
                       "type": "grant", "deadline": deadline, "link": p["link"], "amount": "see call page",
-                      "who": "staff", "keywords": tags_for(title + " " + text, keywords, "eufondovi")})
+                      "who": "staff", "keywords": tags_for(title + " " + text, keywords)})
     report["lines"].append(f"  eufondovi: {len(calls)} research/innovation calls with a deadline "
                            f"({skipped} other calls skipped: schools, health, ...)")
     report["no_date"] += no_date
@@ -307,11 +354,12 @@ def fetch_ampeu(keywords, report):
         if too_old(deadline):
             continue
         scholarship = "stipendij" in title.lower()
+        funder, eu = detect_funder(title, category, "AMPEU")
         calls.append({"id": "ampeu:" + href.rstrip("/").split("/")[-1], "title": title,
-                      "funder": f"AMPEU · {category}" if category else "AMPEU",
+                      "funder": funder, "eu": eu, "source": "AMPEU",
                       "type": "grant", "deadline": deadline, "link": link, "amount": "see call page",
                       "who": "students;PhD" if scholarship else "staff;PhD",
-                      "keywords": tags_for(title, keywords, "AMPEU") + (["mobility"] if "mobilnost" in category.lower() else [])})
+                      "keywords": tags_for(title, keywords)})
     report["lines"].append(f"  AMPEU: {len(calls)} calls with a deadline")
     report["no_date"] += no_date
     return calls
@@ -344,14 +392,148 @@ def fetch_unizg(keywords, report):
             continue
         if too_old(deadline):
             continue
-        calls.append({"id": "unizg:" + cid, "title": title, "funder": "University of Zagreb",
+        funder, eu = detect_funder(title, text, "University of Zagreb")
+        calls.append({"id": "unizg:" + cid, "title": title, "funder": funder, "eu": eu, "source": "UNIZG",
                       "type": "grant", "deadline": deadline, "link": UNIZG_OPEN + "#" + cid,
                       "amount": "see call page", "who": "staff;PhD",
-                      "keywords": tags_for(title + " " + text, keywords, "UNIZG")})
+                      "keywords": tags_for(title + " " + text, keywords)})
     report["lines"].append(f"  UNIZG: {len(calls)} calls with a deadline"
                            + ("   (the open-calls page currently lists no recent call)" if not calls else ""))
     report["no_date"] += no_date
     return calls
+
+
+# ---------------------------------------------------------------- MZOM
+MZOM_LIST = "https://mzom.gov.hr/natjecaji-196/196?trazi=1&tip=&tip2=&tema=&datumod=&datumdo=&pojam=&page={}"
+MZOM_PAGES = 8   # about 10 items per page, newest first: roughly the last 2-3 months
+MZOM_KEEP = ("znanost i tehnologija", "međunarodna suradnja", "stranica", "visoko obrazovanje")
+MZOM_SKIP = ("radno mjesto", "radnog mjesta", "učitelj", "lektor", "nabava", "konzultant", "rang-list",
+             "obavijest", "pitanja i odgovori", "odluka", "razgovor", "ravnatelj")
+
+
+def fetch_mzom(keywords, report):
+    calls, no_date, seen = [], [], set()
+    for n in range(1, MZOM_PAGES + 1):
+        try:
+            page = get_text(MZOM_LIST.format(n))
+        except Exception as e:
+            if n == 1:
+                report["problems"].append(f"MZOM: could not read mzom.gov.hr ({e})")
+                return []
+            break
+        items = re.findall(r"<div class='news_item'>(.*?)<span class='date'>([^<]*)</span>", page, re.S)
+        if not items:
+            break
+        for body, meta in items:
+            a = re.search(r"<a href='([^']+)'>\s*<span class='h3'>(.*?)</span>", body, re.S)
+            if not a:
+                continue
+            href, title = a[1], plain(a[2])
+            parts = [x.strip() for x in meta.split("|")]
+            category = parts[-1].lower() if parts else ""
+            info = plain(body[a.end():])
+            if (href in seen or category not in MZOM_KEEP or "državnu službu" in (title + info).lower()
+                    or any(w in title.lower() for w in MZOM_SKIP)):
+                continue
+            seen.add(href)
+            m = re.match(r"(\d{1,2})\.(\d{1,2})\.(\d{4})", parts[0] if parts else "")
+            published = datetime.date(int(m[3]), int(m[2]), int(m[1])) if m else TODAY
+            link = urllib.parse.urljoin("https://mzom.gov.hr/", href)
+            deadline = hrzz_deadline(info, published)
+            if not deadline:
+                no_date.append((title, link))
+                continue
+            if too_old(deadline):
+                continue
+            low = title.lower()
+            calls.append({"id": "mzom:" + href.rstrip("/").split("/")[-1], "title": title,
+                          "funder": detect_funder(title, info, "MZOM (Ministry of Science)")[0],
+                          "eu": detect_funder(title, info, "MZOM (Ministry of Science)")[1], "source": "MZOM",
+                          "type": "grant", "deadline": deadline, "link": link, "amount": "see call page",
+                          "who": "students;PhD" if ("stipendij" in low or "studij" in low) else "staff;PhD",
+                          "keywords": tags_for(title + " " + info, keywords)})
+    report["lines"].append(f"  MZOM: {len(calls)} science/international calls with a deadline")
+    report["no_date"] += no_date
+    return calls
+
+
+# ---------------------------------------------------------------- UNIRI
+UNIRI_API = "https://uniri.hr/wp-json/wp/v2/vijesti"   # news; /natjecaj on uniri.hr holds job ads only
+UNIRI_SEARCHES = ("poziv", "natječaj", "natjecanje", "stipendij", "thon")
+UNIRI_CALL_WORDS = ("poziv", "natječaj", "natjecanj", "prijave", "stipendij", "thon")
+UNIRI_SKIP = ("održan", "radionic", "posjet", "simpozij", "sastanak", "dan otvorenih", "peticij", "svečan",
+              "ravnatelj", "sportaš", "studentskog zbora", "studentskim udrugama", "predavanj", "dobitnic",
+              "zaključen", "završen", "uspjeh", "rang-list", "ćakula", "info-dan", "infodan", "najav")
+
+
+def fetch_uniri(keywords, report):
+    posts, failed = {}, None
+    for term in UNIRI_SEARCHES:
+        try:
+            req = urllib.request.Request(UNIRI_API + "?" + urllib.parse.urlencode({
+                "search": term, "per_page": 50, "_fields": "id,date,title,link,content",
+                "after": (TODAY - datetime.timedelta(days=KEEP_CLOSED_DAYS + 60)).isoformat() + "T00:00:00"}), headers=UA)
+            with urllib.request.urlopen(req, timeout=60) as r:
+                for p in json.load(r):
+                    posts[p["id"]] = p
+        except Exception as e:
+            failed = e
+    if not posts and failed:
+        report["problems"].append(f"UNIRI: could not read uniri.hr ({failed})")
+        return []
+    calls, no_date = [], []
+    for p in posts.values():
+        title = plain(p["title"]["rendered"])
+        low = title.lower()
+        if not any(w in low for w in UNIRI_CALL_WORDS) or any(w in low for w in UNIRI_SKIP + SKIP_TITLE):
+            continue
+        text = plain(p["content"]["rendered"])
+        published = datetime.date.fromisoformat(p["date"][:10])
+        deadline = hrzz_deadline(text, published)
+        if not deadline:
+            no_date.append((title, p["link"]))
+            continue
+        if too_old(deadline):
+            continue
+        both = (title + " " + text).lower()
+        kind = "datathon" if ("thon" in low or "hackathon" in low or "datathon" in low) else "competition" if "natjecanj" in low else "grant"
+        funder, eu = detect_funder(title, text, "University of Rijeka")
+        calls.append({"id": f"uniri:{p['id']}", "title": title, "funder": funder, "eu": eu, "source": "UNIRI",
+                      "type": kind, "deadline": deadline, "link": p["link"], "amount": "see call page",
+                      "who": "students" if ("student" in both and "stipendij" in low) or kind != "grant" and "student" in both
+                             else "staff;PhD",
+                      "keywords": tags_for(title + " " + text, keywords)})
+    report["lines"].append(f"  UNIRI: {len(calls)} calls/competitions with a deadline")
+    report["no_date"] += no_date
+    return calls
+
+
+# ---------------------------------------------------------------- duplicates across sources
+GENERIC_CAPS = {"HRZZ", "EU", "MZOM", "AMPEU", "UNIRI", "UNIZG", "NPOO", "ESF", "EFRR", "COST"}
+
+
+def norm(title):
+    return re.sub(r"[^a-z0-9čćžšđ ]", "", title.lower())[:45]
+
+
+def acronyms(title):
+    return {w.strip("-") for w in re.findall(r"\b[A-ZČĆŽŠĐ][A-ZČĆŽŠĐ0-9-]{2,}", title)} - GENERIC_CAPS - {""}
+
+
+def merge_duplicates(calls):
+    """Same deadline + (same title start or same call acronym such as RAMP, DOK-2026) = one call."""
+    out, merged = [], 0
+    for c in calls:
+        twin = next((o for o in out if o["deadline"] == c["deadline"] and
+                     (norm(o["title"]) == norm(c["title"]) or acronyms(o["title"]) & acronyms(c["title"]))), None)
+        if twin:
+            twin["keywords"] += [k for k in c["keywords"] if k not in twin["keywords"]]
+            if c["source"] not in twin["source"]:
+                twin["source"] += ", " + c["source"]
+            merged += 1
+        else:
+            out.append(c)
+    return out, merged
 
 
 # ---------------------------------------------------------------- main
@@ -360,8 +542,10 @@ def main():
     print(f"Keywords: {len(keywords)} · not my topics: {len(exclude)}  (from {SETTINGS.name})")
     report = {"lines": [], "problems": [], "no_date": []}
     all_calls = (fetch_eu(keywords, report) + fetch_hrzz(keywords, report) + fetch_eufondovi(keywords, report)
-                 + fetch_ampeu(keywords, report) + fetch_unizg(keywords, report))
+                 + fetch_ampeu(keywords, report) + fetch_unizg(keywords, report)
+                 + fetch_mzom(keywords, report) + fetch_uniri(keywords, report))
 
+    all_calls, merged = merge_duplicates(all_calls)
     kept, left_out = [], []
     for c in all_calls:
         hit = excluded_by(c["title"], exclude)
@@ -369,11 +553,12 @@ def main():
     kept.sort(key=lambda c: c["deadline"])
 
     with OUT.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=["id", "title", "funder", "type", "deadline",
+        w = csv.DictWriter(f, fieldnames=["id", "title", "funder", "eu", "source", "type", "deadline",
                                           "link", "amount", "who", "keywords"])
         w.writeheader()
         for c in kept:
-            w.writerow({**c, "deadline": c["deadline"].isoformat(), "keywords": ";".join(c["keywords"])})
+            w.writerow({**c, "deadline": c["deadline"].isoformat(), "keywords": ";".join(c["keywords"]),
+                        "eu": "yes" if c.get("eu") else ""})
 
     generated = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
     OUT_JS.write_text("// Written by fetch_calls.py. Do not edit: run the script again instead.\n"
@@ -382,6 +567,8 @@ def main():
                                                          ensure_ascii=False) + ";\n", encoding="utf-8")
 
     print("\n".join(report["lines"]))
+    if merged:
+        print(f"  Merged {merged} duplicates (same call listed by two sources)")
     still_open = sum(c["deadline"] >= TODAY for c in kept)
     print(f"\nSaved {len(kept)} calls to {OUT.name} and {OUT_JS.name}: {still_open} open, {len(kept) - still_open} closed.")
     if left_out:

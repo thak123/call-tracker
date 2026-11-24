@@ -1,2 +1,8 @@
 # Python's temporary cache files: not part of the tool
 __pycache__/
+# test output
+tests/.tmp/
+tests/screenshots/
+
+# Saved website copies for the tests (re-create with: python3 tests/web_replay.py record)
+tests/fixtures/web/*.gz

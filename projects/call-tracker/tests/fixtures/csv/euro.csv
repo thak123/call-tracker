@@ -1,0 +1,4 @@
+﻿id;title;funder;type;deadline;link;amount;who;keywords
+eu1;Euro Grant;Example Fund;grant;15.1.2027;https://example.com/eu1;€200.000;"staff;PhD";"natural language processing;language acquisition"
+eu2;Euro Datathon;Sample Lab;datathon;3.12.2026.;https://example.com/eu2;€2.000;students, PhD;artificial intelligence, open data
+eu3;Bad Feb Date;Demo Org;grant;31.2.2027;https://example.com/eu3;€1;staff;x

@@ -1,0 +1,11 @@
+id,title,funder,eu,source,type,deadline,link,amount,who,keywords
+t01,NLP Research Grant,Test Fund A,,HRZZ,grant,2026-12-04,https://example.com/t01,€100,staff;PhD,natural language processing
+t02,Speech Datathon,Test Lab,,UNIRI,datathon,2026-12-20,https://example.com/t02,€5 prize,students,speech recognition
+t03,AI Industry Call,European Commission · Horizon Europe,yes,EU portal,third-party call,2027-01-15,https://example.com/t03,€300,staff,artificial intelligence
+t04,Student Language Competition,Test University,,UNIRI,competition,2027-02-10,https://example.com/t04,€1 prize,students,language learning
+t05,Machine Translation Grant,European Commission · Horizon Europe,yes,"MZOM, UNIRI",grant,2027-03-01,https://example.com/t05,€200,staff;PhD,machine translation;artificial intelligence
+t06,Climate Data Call,Test Agency,,MZOM,grant,2027-01-20,https://example.com/t06,€50,staff,machine learning
+t07,Late Big Grant,Test Fund C,,MZOM,grant,2028-01-10,https://example.com/t07,€900,staff,artificial intelligence
+t08,Closed Corpus Grant,Test Fund A,,HRZZ,grant,2026-11-01,https://example.com/t08,€70,staff;PhD,corpus linguistics
+t09,Closed Hackathon,Test Lab,,UNIRI,datathon,2026-10-01,https://example.com/t09,€2 prize,students,hate speech
+t10,Last Week Grant,Test Fund D,,AMPEU,grant,2026-11-27,https://example.com/t10,€10,staff,multilingual

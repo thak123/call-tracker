@@ -1,0 +1,7 @@
+id,title,funder,type,deadline,link,amount,who,keywords
+csv01,Language Acquisition in the Digital Age,Example Research Council,grant,2026-12-10,https://example.com/csv01,"€200,000",staff;PhD,language acquisition;education
+csv02,NLP for Low-Resource Languages,Sample Language Institute,grant,2027-02-15,https://example.com/csv02,"€350,000",staff,natural language processing;multilingualism
+csv03,Trustworthy AI Challenge,Demo AI Alliance,competition,2026-12-01,https://example.com/csv03,€10000 prize,students;PhD,artificial intelligence;ethics
+csv04,Speech Data Datathon,Fictional Speech Lab,datathon,2027-01-20,https://example.com/csv04,€3000 prize,students,natural language processing;open data
+csv05,Industry Partnership on Chatbots for Schools,Placeholder EdTech Ltd.,third-party call,2026-12-20,https://example.com/csv05,"€75,000",staff;PhD,artificial intelligence;education;natural language processing
+csv06,Child Language Corpus Grant,Imaginary Linguistics Fund,grant,2026-10-30,https://example.com/csv06,"€50,000",staff;PhD,language acquisition;corpus

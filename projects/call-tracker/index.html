@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Call Tracker</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --card: #ffffff; --ink: #1f2328; --muted: #6a6f76;
+    --line: #e2e0db; --accent: #2f5d8a; --soon: #b3261e; --mid: #b26a00; --ok: #2e7d32;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+  header { padding: 24px 28px 8px; }
+  h1 { margin: 0 0 4px; font-size: 24px; }
+  header p { margin: 0; color: var(--muted); }
+  .filters { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; padding: 16px 28px; border-bottom: 1px solid var(--line); }
+  .filters label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); gap: 4px; }
+  select, button { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
+  button { cursor: pointer; }
+  #keywordFilter { display: none; align-items: center; gap: 8px; font-size: 14px; }
+  #keywordFilter.on { display: flex; }
+  /* one centred column for every part of the page */
+  header, .filters, .summary, main { max-width: 1240px; margin-left: auto; margin-right: auto; }
+  .filters { border-bottom: none; }
+  .divider { border-bottom: 1px solid var(--line); }
+  main { padding: 8px 28px 40px; }
+  h2 { font-size: 18px; margin: 24px 0 10px; }
+  h2 small { color: var(--muted); font-weight: normal; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .card.closed { opacity: .75; }
+  .top { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+  .title { font-weight: 600; font-size: 16px; }
+  .countdown { white-space: nowrap; font-weight: 600; font-size: 13px; padding: 2px 8px; border-radius: 999px; }
+  .soon { color: var(--soon); background: #fbe9e7; }
+  .mid { color: var(--mid); background: #fff4e0; }
+  .later { color: var(--ok); background: #e8f5e9; }
+  .gone { color: var(--muted); background: #eeeeec; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #e8eef5; color: var(--accent); border: none; }
+  .tag:hover { background: #d3e0ee; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 4px; }
+  .row a { color: var(--accent); font-size: 13px; }
+  .empty { color: var(--muted); font-style: italic; }
+  .note { color: var(--muted); font-size: 12px; margin-top: 30px; }
+  /* ---- summary dashboard ---- */
+  .viz-root {
+    --surface-1: #fcfcfb; --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #6f6e69;
+    --grid: #e6e5e0; --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
+  }
+  .summary { padding: 18px 28px 4px; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .tile .num { font-size: 30px; font-weight: 650; line-height: 1.1; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .tile .lbl { font-size: 13px; color: var(--text-secondary); }
+  .tile .sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .tile.alert .num { color: var(--soon); }
+  .panels { display: grid; grid-template-columns: 3fr 2fr; gap: 12px; margin-top: 12px; }
+  .panel { background: var(--surface-1); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+  .panel h3 { margin: 0 0 2px; font-size: 14px; color: var(--text-primary); }
+  .panel .hint { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .months svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .months text { font-size: 11px; fill: var(--text-muted); }
+  .months text.val { fill: var(--text-secondary); font-weight: 600; }
+  .months .hit { fill: transparent; cursor: default; }
+  .months .hit:hover { fill: rgba(0,0,0,.04); }
+  .kw { display: grid; grid-template-columns: minmax(0, 11em) 1fr auto; gap: 6px 8px; align-items: center; font-size: 12px; }
+  .kw button { all: unset; cursor: pointer; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kw button:hover, .kw button:focus-visible { color: var(--accent); text-decoration: underline; }
+  .kw .bar { height: 12px; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .kw .n { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .tip { position: fixed; pointer-events: none; background: #1f2328; color: #fff; font-size: 12px; padding: 6px 9px; border-radius: 6px; line-height: 1.4; display: none; z-index: 10; max-width: 260px; }
+  @media (max-width: 1000px) { .panels { grid-template-columns: 1fr; } }
+  @media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+  .refreshmsg { max-width: calc(1240px - 56px); margin: 10px auto 0; padding: 8px 12px; border-radius: 6px; font-size: 13px; background: #e8eef5; color: #1d3f63; }
+  .refreshmsg.ok { background: #e8f5e9; color: #1b5e20; }
+  .refreshmsg.bad { background: #fbe9e7; color: #8c1d18; }
+  .refreshmsg pre { white-space: pre-wrap; font-size: 12px; margin: 6px 0 0; max-height: 200px; overflow: auto; }
+  .refreshmsg code { font-size: 12px; background: rgba(0,0,0,.06); padding: 1px 4px; border-radius: 4px; }
+  .spin { display: inline-block; width: 10px; height: 10px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; margin-right: 6px; vertical-align: -1px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+  /* ---- keyword editor ---- */
+  .kwpanel { max-width: 1240px; margin: 14px auto 0; padding: 0 28px; }
+  .kwpanel > * { background: #fff; }
+  .kwhead { display: flex; justify-content: space-between; gap: 16px; align-items: start; flex-wrap: wrap; border: 1px solid var(--line); border-bottom: none; border-radius: 10px 10px 0 0; padding: 14px 16px 6px; }
+  .kwhead h2 { margin: 0 0 4px; }
+  .kwhelp { margin: 0; color: var(--muted); font-size: 13px; max-width: 640px; }
+  .kwhelp code { font-size: 12px; }
+  .kwactions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .kwstate { font-size: 13px; color: var(--muted); }
+  .kwstate.dirty { color: #8a4b00; font-weight: 600; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:disabled, .kwactions button:disabled { opacity: .45; cursor: default; }
+  .kwcols { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--line); border-top: none; border-radius: 0 0 10px 10px; }
+  .kwcol { padding: 8px 16px 14px; min-width: 0; }
+  .kwcol + .kwcol { border-left: 1px solid var(--line); }
+  .kwcol h3 { font-size: 14px; margin: 6px 0 8px; }
+  .kwcol h3 small { color: var(--muted); font-weight: normal; }
+  .kwadd { display: flex; gap: 6px; }
+  .kwadd input, .kwlist input { flex: 1; min-width: 0; font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; }
+  .kwerr { color: var(--soon); font-size: 12px; margin: 4px 0 0; }
+  .kwlist { list-style: none; margin: 10px 0 0; padding: 0; }
+  .kwlist li { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-top: 1px solid #f0efec; }
+  .kwlist li .word { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .kwlist li .uses { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .kwlist li button { font-size: 12px; padding: 3px 8px; }
+  .kwlist li button.del { color: var(--soon); }
+  .kwlist .none { color: var(--muted); font-style: italic; border: none; }
+  @media (max-width: 760px) { .kwcols { grid-template-columns: 1fr; } .kwcol + .kwcol { border-left: none; border-top: 1px solid var(--line); } }
+  .source { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .loadmsg { margin: 10px auto 0; max-width: calc(1240px - 56px); padding: 8px 12px; border-radius: 6px; background: #fff4e0; color: #6b4200; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Call Tracker</h1>
+  <p>Research funding, third-party calls, competitions and datathons.<span id="sampleNote"> All entries are made-up examples.</span></p>
+</header>
+
+<div class="divider"><section class="filters">
+  <label>Type
+    <select id="fType">
+      <option value="">All</option>
+      <option>grant</option><option>third-party call</option><option>competition</option><option>datathon</option>
+    </select>
+  </label>
+  <label>Who can apply
+    <select id="fWho">
+      <option value="">All</option>
+      <option>staff</option><option>PhD</option><option>students</option>
+    </select>
+  </label>
+  <label>My status
+    <select id="fStatus">
+      <option value="">All</option>
+      <option value="none">not set</option>
+      <option>interesting</option><option>applying</option><option>skipped</option>
+    </select>
+  </label>
+  <div id="keywordFilter">Keyword: <span class="tag" id="kwName"></span> <button id="kwClear">show all</button></div>
+  <div class="source">
+    <span id="sourceInfo"></span>
+    <button id="refreshBtn" class="primary" title="Search the EU portal and HRZZ again">Refresh calls</button>
+    <button id="kwToggle" aria-expanded="false" aria-controls="kwPanel">My keywords</button>
+    <button id="loadBtn">Load calls.csv…</button>
+    <button id="sampleBtn">Back to sample</button>
+    <input type="file" id="csvFile" accept=".csv,text/csv" hidden>
+  </div>
+</section></div>
+<p id="loadMsg" class="loadmsg" hidden></p>
+<div id="refreshMsg" class="refreshmsg" role="status" hidden></div>
+
+<section class="kwpanel" id="kwPanel" hidden aria-label="My keywords">
+  <div class="kwhead">
+    <div>
+      <h2>My keywords</h2>
+      <p class="kwhelp">"Search for" words are used by <code>fetch_calls.py</code> to find calls. Calls whose title contains a "Not my topics" word are hidden, here and in the script.</p>
+    </div>
+    <div class="kwactions">
+      <span id="kwState" class="kwstate"></span>
+      <button id="kwUndo">Undo changes</button>
+      <button id="kwSave" class="primary">Save to keywords.js</button>
+    </div>
+  </div>
+  <div class="kwcols">
+    <div class="kwcol" data-list="keywords">
+      <h3>Search for <small class="kwcount"></small></h3>
+      <form class="kwadd"><input type="text" placeholder="add a keyword, e.g. speech recognition" aria-label="New search keyword" maxlength="80"><button>Add</button></form>
+      <p class="kwerr" hidden></p>
+      <ul class="kwlist"></ul>
+    </div>
+    <div class="kwcol" data-list="exclude">
+      <h3>Not my topics <small class="kwcount"></small></h3>
+      <form class="kwadd"><input type="text" placeholder="add a topic to hide, e.g. medicine" aria-label="New topic to hide" maxlength="80"><button>Add</button></form>
+      <p class="kwerr" hidden></p>
+      <ul class="kwlist"></ul>
+    </div>
+  </div>
+</section>
+
+<section class="summary viz-root" aria-label="Summary">
+  <div class="tiles">
+    <div class="tile"><div class="num" id="tOpen">0</div><div class="lbl">Open calls</div><div class="sub" id="tOpenSub"></div></div>
+    <div class="tile alert"><div class="num" id="tSoon">0</div><div class="lbl">Closing within 30 days</div><div class="sub" id="tSoonSub"></div></div>
+    <div class="tile"><div class="num" id="tApply">0</div><div class="lbl">I'm applying</div><div class="sub" id="tApplySub"></div></div>
+    <div class="tile"><div class="num" id="tClosed">0</div><div class="lbl">Check in the future</div><div class="sub">already closed</div></div>
+  </div>
+  <div class="panels">
+    <div class="panel months">
+      <h3>Open-call deadlines, next 12 months</h3>
+      <div class="hint" id="monthsHint">Number of calls closing each month, by type.</div>
+      <div class="legend" id="monthsLegend"></div>
+      <div id="monthsChart"></div>
+    </div>
+    <div class="panel">
+      <h3>Open calls by keyword</h3>
+      <div class="hint">Click a keyword to show only those calls.</div>
+      <div class="kw" id="kwChart"></div>
+    </div>
+  </div>
+</section>
+<div class="tip" id="tip" role="status"></div>
+
+<main>
+  <h2>Open calls <small id="openCount"></small></h2>
+  <div class="grid" id="openList"></div>
+
+  <h2>Check in the future (already closed) <small id="closedCount"></small></h2>
+  <div class="grid" id="closedList"></div>
+
+  <p class="note">Your status choices are saved in this browser only. Countdowns are measured from today's date.</p>
+</main>
+
+<script src="keywords.js"></script>
+<script src="live_calls.js"></script>
+<script>
+// Made-up sample data. "days" = deadline in days from today (negative = already closed).
+const CALLS = [
+  { id: "c01", title: "Young Researcher Starting Grant", funder: "Example Science Foundation", type: "grant", days: 9,  amount: "€150,000", who: ["staff"], keywords: ["early career", "any field"] },
+  { id: "c02", title: "Open Data for Cities Datathon", funder: "Sample City Lab", type: "datathon", days: 5, amount: "€3,000 prize", who: ["students", "PhD"], keywords: ["open data", "urban", "machine learning"] },
+  { id: "c03", title: "Language Technology Collaboration Call", funder: "Demo Tech Company Ltd.", type: "third-party call", days: 27, amount: "€60,000", who: ["staff", "PhD"], keywords: ["NLP", "industry partner", "AI"] },
+  { id: "c04", title: "Student Innovation Challenge", funder: "Example University Network", type: "competition", days: 14, amount: "€5,000 prize", who: ["students"], keywords: ["innovation", "entrepreneurship"] },
+  { id: "c05", title: "Health AI Hackathon", funder: "Fictional Health Institute", type: "datathon", days: 41, amount: "€2,000 prize", who: ["students", "PhD"], keywords: ["health", "AI", "machine learning"] },
+  { id: "c06", title: "Multilingual Education Research Grant", funder: "Imaginary Education Fund", type: "grant", days: 63, amount: "€90,000", who: ["staff", "PhD"], keywords: ["education", "multilingualism", "NLP"] },
+  { id: "c07", title: "Climate Modelling Contract Research", funder: "Placeholder Energy Group", type: "third-party call", days: 2, amount: "€40,000", who: ["staff"], keywords: ["climate", "modelling", "industry partner"] },
+  { id: "c08", title: "Best Master Thesis Award", funder: "Example Academy of Sciences", type: "competition", days: 88, amount: "€1,500 prize", who: ["students"], keywords: ["any field", "thesis"] },
+  { id: "c09", title: "Digital Humanities Small Grants", funder: "Sample Heritage Trust", type: "grant", days: 120, amount: "€25,000", who: ["staff", "PhD"], keywords: ["digital humanities", "open data"] },
+  { id: "c10", title: "Teaching with AI Pilot Call", funder: "Imaginary Education Fund", type: "grant", days: -12, amount: "€30,000", who: ["staff"], keywords: ["education", "AI", "teaching"] },
+  { id: "c11", title: "Mobility Data Challenge", funder: "Demo Transport Agency", type: "datathon", days: -40, amount: "€4,000 prize", who: ["students"], keywords: ["urban", "open data", "mobility"] },
+  { id: "c12", title: "Industry PhD Fellowship", funder: "Demo Tech Company Ltd.", type: "third-party call", days: -3, amount: "€120,000", who: ["PhD"], keywords: ["industry partner", "AI"] },
+];
+
+const DAY = 86400000;
+const today = new Date(); today.setHours(0, 0, 0, 0);
+CALLS.forEach(c => { c.deadline = new Date(today.getTime() + c.days * DAY); c.link = "https://example.com/calls/" + c.id; });
+const SAMPLE = CALLS.slice();
+
+// ---- CSV loading ----
+// Columns: id,title,funder,type,deadline,link,amount,who,keywords
+// Separator "," or ";" (detected). deadline = YYYY-MM-DD or D.M.YYYY.
+// who and keywords: several values separated by ";", "," or "|".
+const CSV_STORE = "callTracker.csv";
+const TYPES = ["grant", "third-party call", "competition", "datathon"];
+let sourceLabel = "made-up sample";
+
+function parseCSV(text) {
+  const rows = []; let row = [], field = "", q = false;
+  text = text.replace(/^﻿/, "");
+  // European Excel saves with ";" — pick whichever separator the header line uses more.
+  const head = text.split(/\r?\n/)[0];
+  const sep = (head.split(";").length > head.split(",").length) ? ";" : ",";
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) {
+      if (ch === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (ch === '"') q = false;
+      else field += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === sep) { row.push(field); field = ""; }
+    else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      row.push(field); field = "";
+      if (row.some(v => v.trim() !== "")) rows.push(row);
+      row = [];
+    } else field += ch;
+  }
+  row.push(field);
+  if (row.some(v => v.trim() !== "")) rows.push(row);
+  return rows;
+}
+
+function callsFromCSV(text) {
+  const rows = parseCSV(text);
+  if (!rows.length) return { calls: [], problems: ["The file is empty."] };
+  const head = rows[0].map(h => h.trim().toLowerCase());
+  const need = ["title", "type", "deadline"];
+  const missing = need.filter(n => !head.includes(n));
+  if (missing.length) return { calls: [], problems: ["Missing column(s): " + missing.join(", ")] };
+  const col = name => head.indexOf(name);
+  const get = (r, name) => col(name) >= 0 ? (r[col(name)] || "").trim() : "";
+  const list = s => s.split(/[;|,]/).map(x => x.trim()).filter(Boolean);
+  const calls = [], problems = [];
+  rows.slice(1).forEach((r, i) => {
+    const line = i + 2, title = get(r, "title"), type = get(r, "type").toLowerCase(), dl = get(r, "deadline");
+    // Accept 2027-01-15 and the European 15.1.2027 (as Excel often writes it).
+    const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(dl), eu = /^(\d{1,2})\.(\d{1,2})\.(\d{4})\.?$/.exec(dl);
+    const ymd = iso ? [+iso[1], +iso[2], +iso[3]] : eu ? [+eu[3], +eu[2], +eu[1]] : null;
+    if (!title) return problems.push(`Row ${line}: no title, skipped.`);
+    const deadline = ymd && new Date(ymd[0], ymd[1] - 1, ymd[2]);
+    if (!deadline || deadline.getMonth() !== ymd[1] - 1 || deadline.getDate() !== ymd[2])
+      return problems.push(`Row ${line} ("${title}"): deadline "${dl}" is not a date like 2027-01-15 or 15.1.2027, skipped.`);
+    if (!TYPES.includes(type)) problems.push(`Row ${line} ("${title}"): unknown type "${type}", shown anyway.`);
+    calls.push({
+      id: get(r, "id") || "t:" + title, title, type, deadline,
+      days: Math.round((deadline - today) / DAY),
+      funder: get(r, "funder") || "unknown funder",
+      link: get(r, "link") || "#",
+      amount: get(r, "amount") || "amount not given",
+      who: list(get(r, "who")), keywords: list(get(r, "keywords")),
+    });
+  });
+  return { calls, problems };
+}
+
+function useCSV(text, name, remember) {
+  const { calls, problems } = callsFromCSV(text);
+  const msg = $("loadMsg");
+  if (!calls.length) {
+    msg.textContent = `Could not load ${name}: ` + problems.join(" "); msg.hidden = false;
+    return false;
+  }
+  CALLS.length = 0; CALLS.push(...calls);
+  sourceLabel = name;
+  if (remember) localStorage.setItem(CSV_STORE, JSON.stringify({ name, text, loadedAt: new Date().toISOString() }));
+  msg.textContent = problems.join(" "); msg.hidden = !problems.length;
+  render();
+  return true;
+}
+
+const STORE = "callTracker.status";
+const status = JSON.parse(localStorage.getItem(STORE) || "{}");
+let keyword = "";
+
+const $ = id => document.getElementById(id);
+const fmt = d => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+function countdown(days) {
+  if (days < 0) return { text: `closed ${-days} day${days === -1 ? "" : "s"} ago`, cls: "gone" };
+  if (days === 0) return { text: "closes today", cls: "soon" };
+  const text = `${days} day${days === 1 ? "" : "s"} left`;
+  return { text, cls: days <= 14 ? "soon" : days <= 45 ? "mid" : "later" };
+}
+
+function card(c) {
+  const cd = countdown(c.days);
+  const el = document.createElement("article");
+  el.className = "card" + (c.days < 0 ? " closed" : "");
+  el.innerHTML = `
+    <div class="top"><div class="title"></div><span class="countdown ${cd.cls}">${cd.text}</span></div>
+    <div class="meta"></div>
+    <div class="meta"></div>
+    <div class="tags"></div>
+    <div class="row"><a target="_blank" rel="noopener">Open call page</a>
+      <select aria-label="My status">
+        <option value="">status: not set</option>
+        <option>interesting</option><option>applying</option><option>skipped</option>
+      </select></div>`;
+  el.querySelector(".title").textContent = c.title;
+  const metas = el.querySelectorAll(".meta");
+  metas[0].textContent = `${c.funder} · ${c.type} · ${c.amount}`;
+  metas[1].textContent = `Deadline ${fmt(c.deadline)} · For: ${c.who.join(", ")}`;
+  const tags = el.querySelector(".tags");
+  c.keywords.forEach(k => {
+    const b = document.createElement("button");
+    b.className = "tag"; b.textContent = k; b.title = "Show only calls with this keyword";
+    b.onclick = () => { keyword = k; render(); };
+    tags.appendChild(b);
+  });
+  el.querySelector("a").href = c.link;
+  const sel = el.querySelector("select");
+  sel.value = status[c.id] || "";
+  sel.onchange = () => {
+    if (sel.value) status[c.id] = sel.value; else delete status[c.id];
+    localStorage.setItem(STORE, JSON.stringify(status));
+    render();
+  };
+  return el;
+}
+
+// ---- my keywords (CRUD) ----
+// Source of truth: keywords.js in this folder (read by the page and by fetch_calls.py).
+// Edits are kept as a draft in the browser until saved to keywords.js.
+const KW_DRAFT = "callTracker.keywordsDraft";
+const fromFile = (() => {
+  const s = window.CALL_TRACKER_SETTINGS || {};
+  return { keywords: [...(s.keywords || [])], exclude: [...(s.exclude || [])] };
+})();
+let savedKw = JSON.stringify(fromFile);
+let settings = JSON.parse(localStorage.getItem(KW_DRAFT) || "null") || JSON.parse(savedKw);
+const isDirty = () => JSON.stringify(settings) !== savedKw;
+let kwNote = "";   // message after a save that still needs a step from me (e.g. move the download)
+const hiddenBy = c => settings.exclude.find(w => c.title.toLowerCase().includes(w.toLowerCase()));
+
+function storeDraft() {
+  if (isDirty()) localStorage.setItem(KW_DRAFT, JSON.stringify(settings));
+  else localStorage.removeItem(KW_DRAFT);
+}
+
+function validate(list, word, skipIndex = -1) {
+  const w = word.trim().replace(/\s+/g, " ");
+  if (!w) return [null, "Please type a word first."];
+  if (w.length < 2) return [null, "Too short: use at least 2 letters."];
+  const i = settings[list].findIndex(x => x.toLowerCase() === w.toLowerCase());
+  if (i >= 0 && i !== skipIndex) return [null, `"${w}" is already in this list.`];
+  const other = list === "keywords" ? "exclude" : "keywords";
+  if (settings[other].some(x => x.toLowerCase() === w.toLowerCase()))
+    return [null, `"${w}" is already in the other list. Delete it there first.`];
+  return [w, null];
+}
+
+function changeSettings() { kwNote = ""; storeDraft(); renderKeywordPanel(); render(); }
+
+function renderKeywordPanel() {
+  document.querySelectorAll(".kwcol").forEach(col => {
+    const list = col.dataset.list, ul = col.querySelector(".kwlist");
+    col.querySelector(".kwcount").textContent = `(${settings[list].length})`;
+    ul.replaceChildren();
+    if (!settings[list].length) ul.innerHTML = '<li class="none">Nothing yet.</li>';
+    settings[list].forEach((word, i) => {
+      const li = document.createElement("li");
+      const uses = list === "keywords"
+        ? CALLS.filter(c => c.keywords.some(k => k.toLowerCase() === word.toLowerCase())).length
+        : CALLS.filter(c => c.title.toLowerCase().includes(word.toLowerCase())).length;
+      li.innerHTML = `<span class="word"></span><span class="uses"></span><button class="edit">Edit</button><button class="del">Delete</button>`;
+      li.querySelector(".word").textContent = word;
+      li.querySelector(".uses").textContent = list === "keywords" ? `${uses} loaded` : `${uses} hidden`;
+      li.querySelector(".uses").title = list === "keywords" ? "Loaded calls tagged with this keyword" : "Loaded calls hidden by this word";
+      li.querySelector(".del").onclick = () => { settings[list].splice(i, 1); changeSettings(); };
+      li.querySelector(".edit").onclick = () => startEdit(li, list, i);
+      ul.appendChild(li);
+    });
+  });
+  const dirty = isDirty();
+  $("kwState").textContent = dirty ? "Unsaved changes: click Save so the script uses them" : (kwNote || "Saved in keywords.js");
+  $("kwState").classList.toggle("dirty", dirty);
+  $("kwUndo").disabled = !dirty;
+}
+
+function startEdit(li, list, i) {
+  const old = settings[list][i];
+  li.innerHTML = `<input type="text" maxlength="80" aria-label="Edit keyword"><button class="ok">Save</button><button class="cancel">Cancel</button>`;
+  const input = li.querySelector("input");
+  input.value = old; input.focus(); input.select();
+  const err = li.closest(".kwcol").querySelector(".kwerr");
+  const commit = () => {
+    const [w, problem] = validate(list, input.value, i);
+    if (problem) { err.textContent = problem; err.hidden = false; return; }
+    err.hidden = true; settings[list][i] = w; changeSettings();
+  };
+  li.querySelector(".ok").onclick = commit;
+  li.querySelector(".cancel").onclick = () => { err.hidden = true; renderKeywordPanel(); };
+  input.onkeydown = e => { if (e.key === "Enter") commit(); if (e.key === "Escape") li.querySelector(".cancel").click(); };
+}
+
+document.querySelectorAll(".kwcol").forEach(col => {
+  const form = col.querySelector(".kwadd"), input = form.querySelector("input"), err = col.querySelector(".kwerr");
+  form.onsubmit = e => {
+    e.preventDefault();
+    const [w, problem] = validate(col.dataset.list, input.value);
+    if (problem) { err.textContent = problem; err.hidden = false; return; }
+    err.hidden = true; settings[col.dataset.list].push(w); input.value = ""; changeSettings(); input.focus();
+  };
+});
+
+function settingsFileText() {
+  return "// My keywords. Edit them on the Call Tracker page (Keywords panel) and click Save,\n" +
+         "// or edit the lists below by hand. Both the page and fetch_calls.py read this file.\n" +
+         "window.CALL_TRACKER_SETTINGS = " + JSON.stringify(settings, null, 2) + ";\n";
+}
+
+$("kwSave").onclick = async () => {
+  const text = settingsFileText();
+  const done = how => {
+    savedKw = JSON.stringify(settings); storeDraft();
+    kwNote = how.startsWith("Saved in") ? "" : how; renderKeywordPanel();
+    $("kwState").textContent = how;
+  };
+  if (HELPER) {   // running via serve.py: save straight into the folder
+    try {
+      const r = await fetch("/api/keywords", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings) });
+      if (!r.ok) throw new Error((await r.json()).error || r.status);
+      return done("Saved in keywords.js");
+    } catch (e) {
+      $("kwState").textContent = "Could not save through the helper (" + e.message + "). Is serve.py still running?";
+      return;
+    }
+  }
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await showSaveFilePicker({ suggestedName: "keywords.js", types: [{ description: "Keywords file", accept: { "text/javascript": [".js"] } }] });
+      const w = await handle.createWritable(); await w.write(text); await w.close();
+      return done(handle.name === "keywords.js" ? "Saved in keywords.js" : `Saved as ${handle.name}: rename it to keywords.js`);
+    } catch (e) {
+      if (e.name === "AbortError") return;   // user closed the dialog
+    }
+  }
+  // Fallback (Firefox, or the save dialog failed): download the file.
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([text], { type: "text/javascript" })), download: "keywords.js" });
+  a.click(); URL.revokeObjectURL(a.href);
+  done("Downloaded keywords.js: move it into the call-tracker folder, replacing the old one");
+};
+$("kwUndo").onclick = () => { settings = JSON.parse(savedKw); changeSettings(); };
+$("kwToggle").onclick = () => {
+  const p = $("kwPanel"); p.hidden = !p.hidden;
+  $("kwToggle").setAttribute("aria-expanded", String(!p.hidden));
+  if (!p.hidden) renderKeywordPanel();
+};
+
+function matches(c) {
+  if (hiddenBy(c)) return false;
+  const t = $("fType").value, w = $("fWho").value, s = $("fStatus").value;
+  if (t && c.type !== t) return false;
+  if (w && !c.who.includes(w)) return false;
+  if (s === "none" && status[c.id]) return false;
+  if (s && s !== "none" && status[c.id] !== s) return false;
+  if (keyword && !c.keywords.includes(keyword)) return false;
+  return true;
+}
+
+function fill(listEl, countEl, items) {
+  listEl.replaceChildren(...items.map(card));
+  if (!items.length) listEl.innerHTML = '<p class="empty">No calls match the filters.</p>';
+  countEl.textContent = `(${items.length})`;
+}
+
+function render() {
+  const shown = CALLS.filter(matches);
+  const open = shown.filter(c => c.days >= 0).sort((a, b) => a.days - b.days);
+  const closed = shown.filter(c => c.days < 0).sort((a, b) => b.days - a.days);
+  fill($("openList"), $("openCount"), open);
+  fill($("closedList"), $("closedCount"), closed);
+  $("keywordFilter").classList.toggle("on", !!keyword);
+  $("kwName").textContent = keyword;
+  const hiddenCount = CALLS.filter(hiddenBy).length;
+  $("sourceInfo").textContent = `Showing: ${sourceLabel} (${CALLS.length} calls` + (hiddenCount ? `, ${hiddenCount} hidden as not my topics)` : ")");
+  if (!$("kwPanel").hidden) renderKeywordPanel();
+  $("sampleNote").hidden = sourceLabel !== "made-up sample";
+  renderSummary(open, closed);
+}
+
+// ---- summary dashboard (follows the current filters) ----
+const TYPE_COLOR = { "grant": "var(--series-1)", "third-party call": "var(--series-2)", "competition": "var(--series-3)", "datathon": "var(--series-4)" };
+const tip = $("tip");
+function showTip(e, html) { tip.innerHTML = html; tip.style.display = "block"; moveTip(e); }
+function moveTip(e) {
+  const w = tip.offsetWidth, x = e.clientX + 14 + w > innerWidth ? e.clientX - w - 14 : e.clientX + 14;
+  tip.style.left = x + "px"; tip.style.top = (e.clientY + 14) + "px";
+}
+function hideTip() { tip.style.display = "none"; }
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+
+function renderSummary(open, closed) {
+  const soon = open.filter(c => c.days <= 30);
+  const applying = open.filter(c => status[c.id] === "applying");
+  $("tOpen").textContent = open.length;
+  $("tOpenSub").textContent = open.length ? `next: ${open[0].days} day${open[0].days === 1 ? "" : "s"} left` : "none";
+  $("tSoon").textContent = soon.length;
+  $("tSoonSub").textContent = soon.length ? soon.map(c => c.title).slice(0, 1)[0].slice(0, 38) + (soon.length > 1 ? " …" : "") : "nothing urgent";
+  $("tApply").textContent = applying.length;
+  $("tApplySub").textContent = `${open.filter(c => status[c.id] === "interesting").length} marked interesting`;
+  $("tClosed").textContent = closed.length;
+  renderMonths(open);
+  renderKeywords(open);
+}
+
+function renderMonths(open) {
+  const start = new Date(today.getFullYear(), today.getMonth(), 1);
+  const months = Array.from({ length: 12 }, (_, i) => new Date(start.getFullYear(), start.getMonth() + i, 1));
+  const buckets = months.map(() => []);
+  let later = 0;
+  open.forEach(c => {
+    const i = (c.deadline.getFullYear() - start.getFullYear()) * 12 + c.deadline.getMonth() - start.getMonth();
+    if (i >= 0 && i < 12) buckets[i].push(c); else later++;
+  });
+  const present = TYPES.filter(t => open.some(c => c.type === t));
+  $("monthsLegend").innerHTML = present.map(t => `<span><i style="background:${TYPE_COLOR[t]}"></i>${t}</span>`).join("");
+  $("monthsHint").textContent = "Number of calls closing each month, by type." + (later ? ` ${plural(later, "call")} close later.` : "");
+
+  const W = 560, H = 180, padL = 22, padB = 22, padT = 16, plotH = H - padB - padT;
+  const max = Math.max(1, ...buckets.map(b => b.length));
+  const step = max <= 5 ? 1 : Math.ceil(max / 4);
+  const top = Math.ceil(max / step) * step;
+  const y = v => padT + plotH - (v / top) * plotH;
+  const colW = (W - padL) / 12, barW = Math.min(26, colW * 0.6);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Open-call deadlines per month">`;
+  for (let v = 0; v <= top; v += step)
+    svg += `<line x1="${padL}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)" stroke-width="1"/><text x="${padL - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  buckets.forEach((b, i) => {
+    const cx = padL + colW * i + colW / 2, x = cx - barW / 2;
+    const label = months[i].toLocaleDateString("en-GB", { month: "short" }) + (months[i].getMonth() === 0 || i === 0 ? " ’" + String(months[i].getFullYear()).slice(2) : "");
+    svg += `<text x="${cx}" y="${H - 6}" text-anchor="middle">${label}</text>`;
+    let acc = 0;
+    const segs = present.map(t => [t, b.filter(c => c.type === t).length]).filter(s => s[1]);
+    segs.forEach(([t, n], k) => {
+      const y0 = y(acc), y1 = y(acc + n), last = k === segs.length - 1;
+      const h = Math.max(0, y0 - y1 - (k > 0 ? 2 : 0)); // 2px surface gap between stacked segments
+      const yy = y1;
+      if (last) {
+        const r = Math.min(4, h);
+        svg += `<path d="M${x},${yy + h} V${yy + r} Q${x},${yy} ${x + r},${yy} H${x + barW - r} Q${x + barW},${yy} ${x + barW},${yy + r} V${yy + h} Z" fill="${TYPE_COLOR[t]}"/>`;
+      } else svg += `<rect x="${x}" y="${yy}" width="${barW}" height="${h}" fill="${TYPE_COLOR[t]}"/>`;
+      acc += n;
+    });
+    if (b.length) svg += `<text class="val" x="${cx}" y="${y(b.length) - 5}" text-anchor="middle">${b.length}</text>`;
+    svg += `<rect class="hit" data-i="${i}" x="${padL + colW * i}" y="${padT - 10}" width="${colW}" height="${plotH + 10}"/>`;
+  });
+  svg += `</svg>`;
+  const box = $("monthsChart");
+  box.innerHTML = svg;
+  box.querySelectorAll(".hit").forEach(r => {
+    const i = +r.dataset.i, b = buckets[i].slice().sort((p, q) => p.days - q.days);
+    const name = months[i].toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    const html = `<b>${name}</b>: ${plural(b.length, "call")}` + b.slice(0, 6).map(c => `<br>· ${esc(c.title.slice(0, 48))} <span style="opacity:.7">(${c.type}, ${c.days}d)</span>`).join("") + (b.length > 6 ? `<br>· and ${b.length - 6} more` : "");
+    r.onmousemove = e => showTip(e, html);
+    r.onmouseleave = hideTip;
+  });
+}
+
+function renderKeywords(open) {
+  const count = {};
+  open.forEach(c => c.keywords.forEach(k => count[k] = (count[k] || 0) + 1));
+  const rows = Object.entries(count).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const shown = rows.slice(0, 8), rest = rows.length - shown.length;
+  const max = Math.max(1, ...shown.map(r => r[1]));
+  const box = $("kwChart");
+  box.innerHTML = shown.length ? "" : '<span class="empty">No open calls match the filters.</span>';
+  shown.forEach(([k, n]) => {
+    const b = document.createElement("button");
+    b.textContent = k; b.title = `Show only calls about "${k}"`;
+    b.onclick = () => { keyword = k; render(); };
+    const bar = document.createElement("div");
+    bar.className = "bar"; bar.style.width = (n / max * 100) + "%";
+    bar.onmousemove = e => showTip(e, `<b>${esc(k)}</b>: ${plural(n, "open call")}`);
+    bar.onmouseleave = hideTip;
+    const num = document.createElement("span"); num.className = "n"; num.textContent = n;
+    box.append(b, wrap(bar), num);
+  });
+  if (rest > 0) box.insertAdjacentHTML("beforeend", `<span class="n" style="grid-column:1/-1">+ ${plural(rest, "more keyword")}</span>`);
+}
+function wrap(el) { const d = document.createElement("div"); d.append(el); return d; }
+
+["fType", "fWho", "fStatus"].forEach(id => $(id).onchange = render);
+$("kwClear").onclick = () => { keyword = ""; render(); };
+$("loadBtn").onclick = () => $("csvFile").click();
+$("csvFile").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  useCSV(await f.text(), f.name, true);
+  e.target.value = "";
+};
+$("sampleBtn").onclick = () => {
+  localStorage.removeItem(CSV_STORE);
+  CALLS.length = 0; CALLS.push(...SAMPLE);
+  sourceLabel = "made-up sample"; $("loadMsg").hidden = true;
+  render();
+};
+// ---- newest results + Refresh ----
+const HELPER = location.protocol.startsWith("http");   // true when opened through serve.py
+const fmtTime = iso => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const liveLabel = generated => `newest results (${fmtTime(generated)})`;
+
+function showRefresh(html, kind = "") {
+  const m = $("refreshMsg"); m.innerHTML = html; m.className = "refreshmsg " + kind; m.hidden = false;
+}
+
+function useLive(text, generated) {
+  const before = new Set(CALLS.map(c => c.id));
+  if (!useCSV(text, liveLabel(generated), false)) return null;
+  localStorage.removeItem(CSV_STORE);   // newest results win over an older manual file
+  return CALLS.filter(c => !before.has(c.id) && c.days >= 0).length;
+}
+
+async function pollRefresh() {
+  let st;
+  try { st = await (await fetch("/api/status", { cache: "no-store" })).json(); }
+  catch { return showRefresh("Lost contact with the helper. Is <code>serve.py</code> still running?", "bad"); }
+  if (st.running) {
+    $("refreshBtn").disabled = true;
+    showRefresh(`<span class="spin" aria-hidden="true"></span>Searching the EU portal and HRZZ… started ${fmtTime(st.started)}. This takes about 1–2 minutes; you can keep working.`);
+    return setTimeout(pollRefresh, 2000);
+  }
+  $("refreshBtn").disabled = false;
+  if (!st.finished) return;   // never refreshed in this helper session
+  if (st.exit_code !== 0) {
+    return showRefresh(`Refresh had a problem (code ${st.exit_code}). The calls below are from the last good run.<pre>${esc(st.log.trim().split("\n").slice(-12).join("\n"))}</pre>`, "bad");
+  }
+  const text = await (await fetch("live_calls.csv", { cache: "no-store" })).text();
+  const fresh = useLive(text, st.finished);
+  const open = CALLS.filter(c => c.days >= 0).length;
+  showRefresh(`Updated ${fmtTime(st.finished)}: ${plural(CALLS.length, "call")}, ${open} open` + (fresh ? `, <b>${fresh} new open</b> since before.` : ".") +
+    ` <details style="display:inline"><summary>details</summary><pre>${esc(st.log.trim())}</pre></details>`, "ok");
+}
+
+$("refreshBtn").onclick = async () => {
+  if (!HELPER) {
+    return showRefresh("Refresh needs the small helper on your laptop. In a terminal, go to the <code>call-tracker</code> folder and run <code>python3 serve.py</code>. It opens this page with Refresh working.");
+  }
+  try { await fetch("/api/refresh", { method: "POST" }); }
+  catch { return showRefresh("Could not reach the helper. Is <code>serve.py</code> still running?", "bad"); }
+  pollRefresh();
+};
+
+// Start: a CSV I loaded myself after the last run wins; otherwise the newest results; otherwise the sample.
+const live = window.LIVE_CALLS;
+const manual = JSON.parse(localStorage.getItem(CSV_STORE) || "null");
+if (manual && (!live || (manual.loadedAt || "") > live.generated) && useCSV(manual.text, manual.name, false)) {}
+else if (live && useCSV(live.csv, liveLabel(live.generated), false)) {}
+else render();
+if (HELPER) fetch("/api/status", { cache: "no-store" }).then(r => r.json()).then(st => { if (st.running) pollRefresh(); }).catch(() => {});
+</script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+# Python's temporary cache files: not part of the tool
+__pycache__/

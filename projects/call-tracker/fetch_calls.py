@@ -9,6 +9,9 @@ Sources (public data only, no personal data is sent):
   - eufondovi.gov.hr: research/innovation calls from EU funds in Croatia (incl. HAMAG-BICRO)
   - AMPEU: Erasmus+, CEEPUS, bilateral mobility and scholarship calls (ampeu.hr/natjecaji)
   - UNIZG: University of Zagreb "Otvoreni natječaji" research funding page
+  - EU portal browse: ALL open/upcoming EU calls, each with a fit score for my topics (see fit_score)
+  - Devpost: open AI/ML hackathons (for students)
+  - my_calls.csv: calls I keep by hand (SemEval, WMT, ...: no data feed). Edit it in Excel, then Refresh.
   - MZOM: Ministry of Science calls (science & technology, international cooperation; no job ads)
   - UNIRI: University of Rijeka news about calls, scholarships and competitions (no job ads)
 Left out on purpose: fondovieu.gov.hr (its terms forbid automated use), Zaklada Adris (not reachable).
@@ -17,6 +20,7 @@ My keywords and "not my topics" live in keywords.js (edit them on the page).
 import csv
 import datetime
 import html
+import io
 import json
 import re
 import sys
@@ -29,6 +33,7 @@ HERE = Path(__file__).parent
 OUT = HERE / "live_calls.csv"
 OUT_JS = HERE / "live_calls.js"   # same data, so the page can open it by itself
 SETTINGS = HERE / "keywords.js"
+MY_LIST = HERE / "my_calls.csv"   # calls I add by hand (events without a data feed)
 TODAY = datetime.date.today()
 KEEP_CLOSED_DAYS = 365   # closed calls from the last year go to "Check in the future"
 UA = {"User-Agent": "call-tracker/1.0 (personal research tool)"}
@@ -59,14 +64,18 @@ EU_TYPES = {"1": "grant", "2": "third-party call", "8": "grant"}   # 2 = tender,
 
 def eu_search(text, page, size=100):
     """One page of results from the EU search (exact phrase, calls/tenders only)."""
-    query = json.dumps({"bool": {"must": [{"terms": {"type": list(EU_TYPES)}}]}})
+    return eu_post(f'"{text}"', page, size, {"bool": {"must": [{"terms": {"type": list(EU_TYPES)}}]}})
+
+
+def eu_post(text, page, size, query, sort=None):
+    query = json.dumps(query)
     b = uuid.uuid4().hex
     part = lambda name, value: (
         f'--{b}\r\nContent-Disposition: form-data; name="{name}"; filename="blob"\r\n'
         f"Content-Type: application/json\r\n\r\n{value}\r\n")
-    body = (part("query", query) + part("languages", '["en"]') + f"--{b}--\r\n").encode()
-    params = urllib.parse.urlencode({"apiKey": "SEDIA", "text": f'"{text}"',
-                                     "pageSize": size, "pageNumber": page})
+    body = (part("query", query) + part("languages", '["en"]')
+            + (part("sort", json.dumps(sort)) if sort else "") + f"--{b}--\r\n").encode()
+    params = urllib.parse.urlencode({"apiKey": "SEDIA", "text": text, "pageSize": size, "pageNumber": page})
     req = urllib.request.Request(f"{EU_API}?{params}", data=body,
                                  headers={**UA, "Content-Type": f"multipart/form-data; boundary={b}"})
     with urllib.request.urlopen(req, timeout=60) as r:
@@ -88,8 +97,8 @@ def eu_row(meta):
     if too_old(deadline):
         return None
     prog = {"HORIZON": "Horizon Europe", "ERC": "ERC", "DIGITAL": "Digital Europe", "EU4H": "EU4Health",
-            "LIFE": "LIFE", "CREA": "Creative Europe", "ERASMUS": "Erasmus+", "CERV": "CERV"}.get(ident.split("-")[0], ident.split("-")[0])
-    return {"id": "eu:" + ident, "title": title, "funder": "European Commission · " + prog, "eu": True, "source": "EU portal",
+            "LIFE": "LIFE", "CREA": "Creative Europe", "ERASMUS": "Erasmus+", "CERV": "CERV", "MSCA": "MSCA"}.get(ident.split("-")[0], ident.split("-")[0])
+    return {"id": "eu:" + ident, "title": title, "funder": "European Commission · " + prog, "eu": True, "source": "EU portal", "scope": "core",
             "type": EU_TYPES.get(eu_first(meta, "type"), "grant"), "deadline": deadline,
             "link": EU_PORTAL + ident, "amount": "see call page", "who": "staff;PhD", "keywords": []}
 
@@ -120,6 +129,150 @@ def fetch_eu(keywords, report):
                 found += 1
         report["lines"].append(f'  EU "{kw}": {found} calls' + ("   (none right now)" if not found else ""))
     return list(calls.values())
+
+
+# ---------------------------------------------------------------- fit score
+# How well a call fits my research. Words in the title that point to my field count a little, my own keywords a lot,
+# and EU programmes close to language/AI/humanities/digital get one point for being in the right area.
+RELATED = [re.compile(p, re.I) for p in (
+    r"\blanguage", r"linguist", r"\bspeech", r"\btext\b", r"\bdigital", r"\bdata\b", r"\bAI\b",
+    r"artificial intelligence", r"machine learning", r"\blearning\b", r"educat", r"humanit", r"cultur",
+    r"creativ", r"\bmedia\b", r"democra", r"disinformation", r"inclusi", r"multilingual", r"translat",
+    r"heritage", r"open science", r"research infrastructure", r"\bskills\b", r"citizen")]
+RELEVANT_PREFIXES = ("HORIZON-CL2", "HORIZON-CL4", "ERC", "HORIZON-MSCA", "DIGITAL", "HORIZON-WIDERA",
+                     "HORIZON-EIC", "HORIZON-INFRA", "CREA", "ERASMUS")
+
+
+def fit_score(c):
+    score = 3 * len(c["keywords"])                                   # my keywords found in the call
+    if any(r.search(c["title"]) for r in RELATED):
+        score += 2                                                   # title words close to my field
+    if c["id"].split(":", 1)[-1].upper().startswith(RELEVANT_PREFIXES):
+        score += 1                                                   # EU programme close to my field
+    return score
+
+
+# ---------------------------------------------------------------- EU portal: browse everything
+BROWSE_QUERY = {"bool": {"must": [{"terms": {"type": ["1", "8"]}}, {"terms": {"status": ["31094501", "31094502"]}}]}}
+
+
+def fetch_eu_browse(keywords, report):
+    """All open/upcoming EU grant calls (newest deadline first, stop when deadlines are in the past)."""
+    calls, read = [], 0
+    try:
+        for page in range(1, 21):
+            results = eu_post("***", page, 100, BROWSE_QUERY, {"field": "deadlineDate", "order": "DESC"})["results"]
+            if not results:
+                break
+            read += len(results)
+            for r in results:
+                row = eu_row(r.get("metadata", {}))
+                if row and row["deadline"] >= TODAY:
+                    row.update(scope="browse", keywords=tags_for(row["title"], keywords))
+                    calls.append(row)
+            latest = [d[:10] for r in results for d in r.get("metadata", {}).get("deadlineDate") or []]
+            if latest and max(latest) < TODAY.isoformat():
+                break
+    except Exception as e:
+        if not read:
+            report["problems"].append(f"EU browse: search failed ({e})")
+            return []
+    relevant = sum(fit_score(c) >= 1 for c in calls)
+    report["lines"].append(f"  EU browse: {len(calls)} open/upcoming calls read, {relevant} fit my field (score 1 or more)")
+    return calls
+
+
+# ---------------------------------------------------------------- Devpost hackathons
+DEVPOST = "https://devpost.com/api/hackathons?status[]=open&order_by=deadline&per_page=100&page={}"
+MON = {m: i for i, m in enumerate("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(), 1)}
+
+
+def devpost_deadline(text):
+    """'Nov 17 - 24, 2026' / 'Oct 17 - Nov 24, 2026' / 'Dec 28, 2026 - Jan 15, 2027' -> last day."""
+    text = (text or "").strip()
+    m = re.match(r"(?:([A-Z][a-z]{2}) )?(\d{1,2}), (\d{4})$", text.split(" - ")[-1].strip())
+    if not m:
+        return None
+    month = m[1] or (re.match(r"([A-Z][a-z]{2})", text) or [None, None])[1]
+    try:
+        return datetime.date(int(m[3]), MON[month], int(m[2]))
+    except (KeyError, ValueError):
+        return None
+
+
+def fetch_devpost(keywords, report):
+    hackathons, total = [], None
+    for page in range(1, 6):
+        try:
+            data = json.loads(get_text(DEVPOST.format(page)), strict=False)
+        except Exception as e:
+            if page == 1:
+                report["problems"].append(f"Devpost: could not read devpost.com ({e})")
+                return []
+            break
+        batch = data.get("hackathons", [])
+        total = (data.get("meta") or {}).get("total_count", total)
+        hackathons += batch
+        if not batch or (total is not None and len(hackathons) >= total):
+            break
+    calls = []
+    for h in hackathons:
+        title = plain(h.get("title", ""))
+        themes = [t.get("name", "") for t in h.get("themes", [])]
+        if h.get("invite_only") or not (any("Machine Learning" in t or t == "Data" for t in themes)
+                                        or any(r.search(title) for r in RELATED)):
+            continue
+        deadline = devpost_deadline(h.get("submission_period_dates"))
+        if not deadline or too_old(deadline):
+            continue
+        prize = re.sub(r"^(\S{1,4})\s+(\d)", r"\1\2", plain(h.get("prize_amount") or ""))
+        calls.append({"id": f"devpost:{h['id']}", "title": title, "funder": h.get("organization_name") or "Devpost host",
+                      "eu": False, "source": "Devpost", "scope": "core", "type": "datathon", "deadline": deadline,
+                      "link": h["url"].split("?")[0], "amount": prize if prize and prize != "$0" else "no prize listed",
+                      "who": "students", "keywords": tags_for(title, keywords)})
+    report["lines"].append(f"  Devpost: {len(calls)} open AI/data hackathons (of {len(hackathons)} open)")
+    return calls
+
+
+# ---------------------------------------------------------------- my own list (my_calls.csv)
+def parse_any_date(text):
+    m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", text) or re.match(r"^(\d{1,2})\.(\d{1,2})\.(\d{4})\.?$", text)
+    if not m:
+        return None
+    y, mo, d = (int(m[1]), int(m[2]), int(m[3])) if len(m[1]) == 4 else (int(m[3]), int(m[2]), int(m[1]))
+    try:
+        return datetime.date(y, mo, d)
+    except ValueError:
+        return None
+
+
+def fetch_my_list(keywords, report):
+    """Events with no data feed (SemEval, WMT, CLEF ...): I write them into my_calls.csv, with a date from the event's page."""
+    if not MY_LIST.exists():
+        return []
+    text = MY_LIST.read_text(encoding="utf-8-sig")
+    head = text.split("\n", 1)[0]
+    rows = csv.DictReader(io.StringIO(text), delimiter=";" if head.count(";") > head.count(",") else ",")
+    calls = []
+    for i, r in enumerate(rows):
+        r = {(k or "").strip().lower(): (v or "").strip() for k, v in r.items()}
+        line, title = i + 2, r.get("title", "")
+        deadline = parse_any_date(r.get("deadline", ""))
+        if not title or not deadline:
+            why = "no title" if not title else f"date '{r.get('deadline', '')}' not understood: use 2027-01-31 or 31.1.2027"
+            report["no_date"].append((f"my_calls.csv row {line}: {title or '(no title)'} ({why})", "my_calls.csv"))
+            continue
+        if too_old(deadline):
+            continue
+        mine = [k.strip() for k in re.split(r"[;|,]", r.get("keywords", "")) if k.strip()]
+        calls.append({"id": f"my:{re.sub('[^a-z0-9]+', '-', title.lower()).strip('-')[:60]}:{deadline.isoformat()}",
+                      "title": title, "funder": r.get("funder") or "my list", "eu": False, "source": "My list",
+                      "scope": "core", "type": r.get("type") if r.get("type") in ("grant", "third-party call", "competition", "datathon") else "competition",
+                      "deadline": deadline, "link": r.get("link") or MY_LIST.name, "amount": r.get("amount") or "see call page",
+                      "who": r.get("who") or "staff;PhD",
+                      "keywords": mine + [k for k in tags_for(title, keywords) if k not in mine]})
+    report["lines"].append(f"  My list: {len(calls)} entries from {MY_LIST.name}")
+    return calls
 
 
 # ---------------------------------------------------------------- HRZZ
@@ -508,6 +661,25 @@ def fetch_uniri(keywords, report):
     return calls
 
 
+# ---------------------------------------------------------------- one card per call
+def one_per_call(calls):
+    """A call found twice (keyword search AND browsing) counts once. A call with several cut-off dates
+    (the EU lists each as its own record) shows its NEXT cut-off: the one I can still act on."""
+    def better(new, old):
+        if new["scope"] != old["scope"]:
+            return new["scope"] == "core"
+        new_open, old_open = new["deadline"] >= TODAY, old["deadline"] >= TODAY
+        if new_open and old_open:
+            return new["deadline"] < old["deadline"]
+        return new_open and not old_open
+    best = {}
+    for c in calls:
+        c.setdefault("scope", "core")
+        if c["id"] not in best or better(c, best[c["id"]]):
+            best[c["id"]] = c
+    return list(best.values())
+
+
 # ---------------------------------------------------------------- duplicates across sources
 GENERIC_CAPS = {"HRZZ", "EU", "MZOM", "AMPEU", "UNIRI", "UNIZG", "NPOO", "ESF", "EFRR", "COST"}
 
@@ -525,6 +697,7 @@ def merge_duplicates(calls):
     out, merged = [], 0
     for c in calls:
         twin = next((o for o in out if o["deadline"] == c["deadline"] and
+                     not (o["source"] == "EU portal" and c["source"] == "EU portal") and
                      (norm(o["title"]) == norm(c["title"]) or acronyms(o["title"]) & acronyms(c["title"]))), None)
         if twin:
             twin["keywords"] += [k for k in c["keywords"] if k not in twin["keywords"]]
@@ -543,9 +716,14 @@ def main():
     report = {"lines": [], "problems": [], "no_date": []}
     all_calls = (fetch_eu(keywords, report) + fetch_hrzz(keywords, report) + fetch_eufondovi(keywords, report)
                  + fetch_ampeu(keywords, report) + fetch_unizg(keywords, report)
-                 + fetch_mzom(keywords, report) + fetch_uniri(keywords, report))
+                 + fetch_mzom(keywords, report) + fetch_uniri(keywords, report)
+                 + fetch_devpost(keywords, report) + fetch_eu_browse(keywords, report)
+                 + fetch_my_list(keywords, report))
 
+    all_calls = one_per_call(all_calls)
     all_calls, merged = merge_duplicates(all_calls)
+    for c in all_calls:
+        c["fit"] = fit_score(c)
     kept, left_out = [], []
     for c in all_calls:
         hit = excluded_by(c["title"], exclude)
@@ -553,7 +731,7 @@ def main():
     kept.sort(key=lambda c: c["deadline"])
 
     with OUT.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=["id", "title", "funder", "eu", "source", "type", "deadline",
+        w = csv.DictWriter(f, fieldnames=["id", "title", "funder", "eu", "source", "fit", "scope", "type", "deadline",
                                           "link", "amount", "who", "keywords"])
         w.writeheader()
         for c in kept:
@@ -572,8 +750,9 @@ def main():
     still_open = sum(c["deadline"] >= TODAY for c in kept)
     print(f"\nSaved {len(kept)} calls to {OUT.name} and {OUT_JS.name}: {still_open} open, {len(kept) - still_open} closed.")
     if left_out:
-        print(f"Left out {len(left_out)} calls on 'not my topics':")
-        for hit, c in left_out:
+        shown = [(h, c) for h, c in left_out if c["scope"] == "core"]
+        print(f"Left out {len(left_out)} calls on 'not my topics' ({len(left_out) - len(shown)} of them from EU browse):")
+        for hit, c in shown:
             print(f"  - [{hit}] {c['title'][:80]}")
     if report["no_date"]:
         print(f"Check by hand ({len(report['no_date'])} posts without a clear deadline):")

@@ -1,6 +1,7 @@
 """Record real website answers once, then replay them in tests (no internet needed).
 
-    python3 tests/web_replay.py record     # refresh the saved copies (needs internet)
+    python3 tests/web_replay.py record         # refresh ALL saved copies (needs internet)
+    python3 tests/web_replay.py record --add   # keep the old copies, only record pages not saved yet
 """
 import datetime
 import gzip
@@ -56,16 +57,20 @@ def load_fetch_calls():
     import fetch_calls as fc
     fc.TODAY = FIXED_TODAY
     fc.SETTINGS = SETTINGS
+    fc.MY_LIST = HERE / "fixtures" / "my_calls_test.csv"   # fixed list for the whole-run tests
     return fc
 
 
-def record():
+def record(add_only=False):
     fc = load_fetch_calls()
     WEB.mkdir(parents=True, exist_ok=True)
-    index, real = {}, urllib.request.urlopen
+    index = json.loads(INDEX.read_text()) if add_only and INDEX.exists() else {}
+    real = urllib.request.urlopen
 
     def recording(req, timeout=None):
         url = url_of(req)
+        if add_only and url in index:                      # already saved: use the saved copy
+            return FakeResponse(gzip.decompress((WEB / index[url]).read_bytes()))
         with real(req, timeout=timeout) as r:
             body = r.read()
         name = hashlib.sha1(url.encode()).hexdigest()[:16] + ".gz"
@@ -76,7 +81,8 @@ def record():
     try:
         keywords, _ = fc.load_settings()
         report = {"lines": [], "problems": [], "no_date": []}
-        for f in (fc.fetch_eu, fc.fetch_hrzz, fc.fetch_eufondovi, fc.fetch_ampeu, fc.fetch_unizg, fc.fetch_mzom, fc.fetch_uniri):
+        for f in (fc.fetch_eu, fc.fetch_hrzz, fc.fetch_eufondovi, fc.fetch_ampeu, fc.fetch_unizg, fc.fetch_mzom,
+                  fc.fetch_uniri, fc.fetch_devpost, fc.fetch_eu_browse):
             f(keywords, report)
     finally:
         urllib.request.urlopen = real
@@ -85,5 +91,5 @@ def record():
     print(f"Saved {len(index)} pages, {sum(p.stat().st_size for p in WEB.glob('*.gz')) // 1024} KB")
 
 
-if __name__ == "__main__" and sys.argv[1:] == ["record"]:
-    record()
+if __name__ == "__main__" and sys.argv[1:2] == ["record"]:
+    record(add_only="--add" in sys.argv)

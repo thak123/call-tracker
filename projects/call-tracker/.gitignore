@@ -6,3 +6,8 @@ tests/screenshots/
 
 # Saved website copies for the tests (re-create with: python3 tests/web_replay.py record)
 tests/fixtures/web/*.gz
+
+# Weekly refresh output (written by weekly_refresh.py)
+weekly_log.txt
+weekly_summary.txt
+weekly_cron.log

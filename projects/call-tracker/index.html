@@ -43,8 +43,58 @@
   .tag:hover { background: #d3e0ee; }
   .eu { display: inline-block; font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 4px; background: #1d3f8a; color: #ffd93b; margin-right: 4px; vertical-align: 1px; }
   .found { color: var(--muted); font-size: 12px; }
+  /* coloured labels: soft tints with dark text (contrast checked by the tests); the words carry the meaning */
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .chip { display: inline-block; font-size: 12px; line-height: 1.5; padding: 1px 8px; border-radius: 6px; color: #1f2328; }
+  .chip-funder { background: #e9ebef; }
+  .chip-funder.is-eu { background: #dfe8fb; }
+  .chip-amount { background: #d8f0ec; }
+  .chip-type.type-grant { background: #d6e6fb; }
+  .chip-type.type-third-party-call { background: #fde0d3; }
+  .chip-type.type-competition { background: #d4f0e3; }
+  .chip-type.type-datathon { background: #fcecc2; }
+  .chip-deadline { font-weight: 600; }
+  .chip-deadline.soon { background: #fbdcd8; }
+  .chip-deadline.mid { background: #fde9c4; }
+  .chip-deadline.later { background: #dcefdc; }
+  .chip-deadline.gone { background: #e8e8e5; }
+  .chip-who { background: #e8e0f8; }
+  .chip-who.who-phd { background: #f8dcec; }
+  .chip-who.who-students { background: #d8ecf8; }
+  .chip.eu { background: #1d3f8a; color: #ffd93b; font-weight: 700; font-size: 11px; margin: 0; }
+  .chip.newtag { background: #d3302f; color: #fff; font-weight: 700; font-size: 11px; margin: 0; letter-spacing: .03em; }
+  .chip.fit { background: #e8f5e9; color: #1b5e20; font-weight: 600; font-size: 11px; border-radius: 999px; margin: 0; }
+  .chip.found { background: transparent; color: var(--muted); padding-left: 2px; }
+  .card { border-left: 5px solid #c9ccd1; }
+  .card.type-grant { border-left-color: var(--series-1, #2a78d6); }
+  .card.type-third-party-call { border-left-color: var(--series-2, #eb6834); }
+  .card.type-competition { border-left-color: var(--series-3, #1baf7a); }
+  .card.type-datathon { border-left-color: var(--series-4, #eda100); }
+  select.status-interesting { background: #fdf0c0; }
+  select.status-applying { background: #d4eed9; }
+  select.status-skipped { background: #e8e8e5; }
+  .newtag { display: inline-block; font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 4px; background: #d3302f; color: #fff; margin-left: 4px; letter-spacing: .03em; }
+  .card.dismissed { opacity: .55; }
+  .acts { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+  .acts .share { font-size: 12px; padding: 4px 8px; }
+  dialog { border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; width: min(640px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto; color: var(--ink); background: #fff; }
+  dialog::backdrop { background: rgba(0,0,0,.35); }
+  dialog h2 { margin: 0 0 10px; font-size: 18px; }
+  dialog label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  dialog textarea, dialog select { font: 14px/1.45 system-ui, sans-serif; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); width: 100%; }
+  .sharehelp { font-size: 12px; color: var(--muted); margin: 6px 0 12px; }
+  .sharewarn { font-size: 13px; background: #fff4e0; color: #6b4200; padding: 6px 10px; border-radius: 6px; margin: 0 0 8px; }
+  .shareacts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .shareacts #shareClose { margin-left: auto; }
+  #shareMsg { font-size: 13px; color: #1b5e20; }
+  a.btn { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; text-decoration: none; color: var(--ink); background: #fff; }
+  a.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .acts .dismiss { font-size: 12px; padding: 4px 8px; color: var(--muted); }
+  #fSearch { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; min-width: 170px; background: #fff; }
+  .fit { display: inline-block; font-size: 11px; font-weight: 600; padding: 0 6px; border-radius: 999px; background: #e8f5e9; color: #1b5e20; margin-left: 4px; }
+  label.check { flex-direction: row !important; align-items: center; gap: 6px !important; font-size: 13px; color: var(--text-secondary, #52514e); padding-bottom: 6px; }
   .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 4px; }
-  .row a { color: var(--accent); font-size: 13px; }
+  .row a { color: var(--accent); font-size: 13px; white-space: nowrap; }
   .empty { color: var(--muted); font-style: italic; }
   .note { color: var(--muted); font-size: 12px; margin-top: 30px; }
   /* ---- summary dashboard ---- */
@@ -127,6 +177,9 @@
 </header>
 
 <div class="divider"><section class="filters">
+  <label>Search
+    <input type="search" id="fSearch" placeholder="any word…" autocomplete="off" aria-label="Search calls">
+  </label>
   <label>Type
     <select id="fType">
       <option value="">All</option>
@@ -142,6 +195,9 @@
   <label>Funder
     <select id="fFunder"><option value="">All</option></select>
   </label>
+  <label>Sort open calls by
+    <select id="fSort"><option value="fit">Best fit first</option><option value="deadline">Deadline</option></select>
+  </label>
   <label>My status
     <select id="fStatus">
       <option value="">All</option>
@@ -149,11 +205,18 @@
       <option>interesting</option><option>applying</option><option>skipped</option>
     </select>
   </label>
+  <label id="newToggle" class="check" hidden title="Calls that appeared since my last visit">
+    <input type="checkbox" id="fNew"><span>Only new (<span id="newCount">0</span>)</span></label>
+  <label id="dismissedToggle" class="check" hidden title="Calls I dismissed">
+    <input type="checkbox" id="fDismissed"><span>Show <span id="dismissedCount">0</span> dismissed</span></label>
+  <label id="otherToggle" class="check" hidden title="EU calls found by browsing that do not match my keywords or research area">
+    <input type="checkbox" id="fOther"><span>Also show <span id="otherCount">0</span> other EU calls</span></label>
   <div id="keywordFilter">Keyword: <span class="tag" id="kwName"></span> <button id="kwClear">show all</button></div>
   <div class="source">
     <span id="sourceInfo"></span>
     <button id="refreshBtn" class="primary" title="Search the EU portal and HRZZ again">Refresh calls</button>
     <button id="kwToggle" aria-expanded="false" aria-controls="kwPanel">My keywords</button>
+    <button id="shareListBtn" title="Send a list of calls to a colleague">Share list…</button>
     <button id="loadBtn">Load calls.csv…</button>
     <button id="sampleBtn">Back to sample</button>
     <input type="file" id="csvFile" accept=".csv,text/csv" hidden>
@@ -212,6 +275,26 @@
     </div>
   </div>
 </section>
+<dialog id="shareDialog" aria-labelledby="shareTitle">
+  <form method="dialog" onsubmit="return false">
+    <h2 id="shareTitle">Share</h2>
+    <label id="shareScopeRow" hidden>What to share
+      <select id="shareScope"></select>
+    </label>
+    <label>Message (you can edit it)
+      <textarea id="shareText" rows="12"></textarea>
+    </label>
+    <p id="shareWarn" class="sharewarn" hidden></p>
+    <p class="sharehelp">Nothing is sent from here. "E-mail" opens a draft in your own mail program, and you press send. Only public call details are included.</p>
+    <div class="shareacts">
+      <a id="shareEmail" class="btn primary" href="mailto:">E-mail…</a>
+      <button type="button" id="shareNative" hidden>Share…</button>
+      <button type="button" id="shareCopy">Copy text</button>
+      <span id="shareMsg" role="status"></span>
+      <button type="button" id="shareClose">Close</button>
+    </div>
+  </form>
+</dialog>
 <div class="tip" id="tip" role="status"></div>
 
 <main>
@@ -245,7 +328,7 @@ const CALLS = [
 
 const DAY = 86400000;
 const today = new Date(); today.setHours(0, 0, 0, 0);
-CALLS.forEach(c => { c.deadline = new Date(today.getTime() + c.days * DAY); c.link = "https://example.com/calls/" + c.id; c.source = "sample"; c.eu = false; });
+CALLS.forEach(c => { c.deadline = new Date(today.getTime() + c.days * DAY); c.link = "https://example.com/calls/" + c.id; c.source = "sample"; c.eu = false; c.fit = 0; c.scope = "core"; });
 const SAMPLE = CALLS.slice();
 
 // ---- CSV loading ----
@@ -311,6 +394,7 @@ function callsFromCSV(text) {
       amount: get(r, "amount") || "amount not given",
       who: list(get(r, "who")), keywords: list(get(r, "keywords")),
       source: get(r, "source"), eu: /^(yes|true|1|da)$/i.test(get(r, "eu")),
+      fit: parseInt(get(r, "fit"), 10) || 0, scope: get(r, "scope") || "core",
     });
   });
   return { calls, problems };
@@ -351,23 +435,42 @@ function card(c) {
   el.className = "card" + (c.days < 0 ? " closed" : "");
   el.innerHTML = `
     <div class="top"><div class="title"></div><span class="countdown ${cd.cls}">${cd.text}</span></div>
-    <div class="meta"></div>
-    <div class="meta"></div>
+    <div class="chips chips-money"></div>
+    <div class="chips chips-when"></div>
     <div class="tags"></div>
     <div class="row"><a target="_blank" rel="noopener">Open call page</a>
+      <span class="acts"><button class="share" title="Send this call to someone">Share</button><button class="dismiss" title="Hide this call for good"></button>
       <select aria-label="My status">
         <option value="">status: not set</option>
         <option>interesting</option><option>applying</option><option>skipped</option>
-      </select></div>`;
+      </select></span></div>`;
   el.querySelector(".title").textContent = c.title;
-  const metas = el.querySelectorAll(".meta");
-  metas[0].textContent = `${c.funder} · ${c.type} · ${c.amount}`;
-  if (c.eu) metas[0].insertAdjacentHTML("afterbegin", '<span class="eu" title="EU-funded programme">EU</span>');
-  metas[1].textContent = `Deadline ${fmt(c.deadline)} · For: ${c.who.join(", ")}`;
+  const isDismissed = dismissed.has(c.id);
+  if (isDismissed) el.classList.add("dismissed");
+  el.querySelector(".share").onclick = () => openShare({ type: "one", call: c });
+  const dBtn = el.querySelector(".dismiss");
+  dBtn.textContent = isDismissed ? "Restore" : "Dismiss";
+  dBtn.onclick = () => { isDismissed ? dismissed.delete(c.id) : dismissed.add(c.id); saveDismissed(); render(); };
+  // coloured labels: every kind of data has its own colour (the words stay, so colour is never the only clue)
+  const chip = (parent, cls, text, title) => {
+    const e = document.createElement("span"); e.className = "chip " + cls; e.textContent = text;
+    if (title) e.title = title; parent.appendChild(e); return e;
+  };
+  const slug = t => String(t).toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  el.classList.add("type-" + slug(c.type));
+  const money = el.querySelector(".chips-money"), when = el.querySelector(".chips-when");
+  if (c.eu) chip(money, "eu", "EU", "EU-funded programme");
+  chip(money, "chip-funder" + (c.eu ? " is-eu" : ""), c.funder, "Funder");
+  chip(money, "chip-type type-" + slug(c.type), c.type, "Type of call");
+  chip(money, "chip-amount", c.amount, "Amount");
+  chip(when, "chip-deadline " + cd.cls, `Deadline ${fmt(c.deadline)}`, "Deadline");
+  c.who.forEach(w => chip(when, "chip-who who-" + slug(w), w, "Who can apply"));
+  if (newIds.has(c.id)) chip(when, "newtag", "NEW", "Appeared since my last visit");
+  if (c.fit > 0) chip(when, "fit", `fit ${c.fit}`, "Fit with my keywords and research area (higher is better)");
   // where the call was found, when that is not obvious from the funder's name
   const src = (c.source || "").split(",")[0].trim().toLowerCase();
   if (src && src !== "sample" && !c.funder.toLowerCase().includes(src) && !(src === "eu portal" && c.eu))
-    metas[1].insertAdjacentHTML("beforeend", ` <span class="found">· found on ${esc(c.source)}</span>`);
+    chip(when, "found", `found on ${c.source}`);
   const tags = el.querySelector(".tags");
   c.keywords.forEach(k => {
     const b = document.createElement("button");
@@ -378,6 +481,7 @@ function card(c) {
   el.querySelector("a").href = c.link;
   const sel = el.querySelector("select");
   sel.value = status[c.id] || "";
+  if (sel.value) sel.classList.add("status-" + sel.value);
   sel.onchange = () => {
     if (sel.value) status[c.id] = sel.value; else delete status[c.id];
     localStorage.setItem(STORE, JSON.stringify(status));
@@ -399,6 +503,23 @@ let settings = JSON.parse(localStorage.getItem(KW_DRAFT) || "null") || JSON.pars
 const isDirty = () => JSON.stringify(settings) !== savedKw;
 let kwNote = "";   // message after a save that still needs a step from me (e.g. move the download)
 const hiddenBy = c => settings.exclude.find(w => c.title.toLowerCase().includes(w.toLowerCase()));
+// Dismissed calls: hidden for good (until I show or restore them). Saved in this browser.
+const DISMISSED = "callTracker.dismissed", SEEN = "callTracker.seen";
+const dismissed = new Set(JSON.parse(localStorage.getItem(DISMISSED) || "[]"));
+const saveDismissed = () => localStorage.setItem(DISMISSED, JSON.stringify([...dismissed]));
+let showDismissed = false, onlyNew = false;
+const newIds = new Set();   // calls that appeared since my last visit (only tracked for the newest search results)
+function trackNew() {
+  const raw = localStorage.getItem(SEEN), seen = raw ? new Set(JSON.parse(raw)) : null;
+  const ids = CALLS.map(c => c.id);
+  if (seen) ids.forEach(id => { if (!seen.has(id)) newIds.add(id); });   // very first visit: nothing is "new"
+  localStorage.setItem(SEEN, JSON.stringify([...new Set([...(seen || []), ...ids])]));
+}
+// "Other EU calls" = found by browsing all EU calls but not close to my field (fit score 0). Hidden unless I ask.
+let showOther = false;
+const isOther = c => c.scope === "browse" && (c.fit || 0) < 1;
+const fitHidden = c => isOther(c) && !showOther;
+const isShown = c => !hiddenBy(c) && !fitHidden(c) && (showDismissed || !dismissed.has(c.id));
 
 function storeDraft() {
   if (isDirty()) localStorage.setItem(KW_DRAFT, JSON.stringify(settings));
@@ -535,14 +656,14 @@ $("kwToggle").onclick = () => ($("kwPanel").hidden ? openPanel() : closePanel())
 $("kwClose").onclick = closePanel;
 addEventListener("popstate", () => showPanel(location.hash === "#keywords"));
 addEventListener("keydown", e => {
-  if (e.key !== "Escape" || $("kwPanel").hidden) return;
+  if (e.key !== "Escape" || $("kwPanel").hidden || document.querySelector("dialog[open]")) return;
   if (e.target.closest && e.target.closest(".kwlist li")) return;   // Esc inside an edit only cancels the edit
   closePanel();
 });
 if (location.hash === "#keywords") showPanel(true);
 
 function matches(c) {
-  if (hiddenBy(c)) return false;
+  if (!isShown(c)) return false;
   const t = $("fType").value, w = $("fWho").value, s = $("fStatus").value;
   if (t && c.type !== t) return false;
   if (w && !c.who.includes(w)) return false;
@@ -553,6 +674,12 @@ function matches(c) {
   if (s === "none" && status[c.id]) return false;
   if (s && s !== "none" && status[c.id] !== s) return false;
   if (keyword && !c.keywords.includes(keyword)) return false;
+  if (onlyNew && !newIds.has(c.id)) return false;
+  const q = $("fSearch").value.trim().toLowerCase();
+  if (q) {
+    const hay = [c.title, c.funder, c.source, c.type, c.keywords.join(" ")].join(" ").toLowerCase();
+    if (!q.split(/\s+/).every(w => hay.includes(w))) return false;
+  }
   return true;
 }
 
@@ -564,8 +691,8 @@ function fill(listEl, countEl, items) {
 
 function fillFunders() {
   const sel = $("fFunder"), keep = sel.value, count = {};
-  CALLS.filter(c => !hiddenBy(c)).forEach(c => count[c.funder] = (count[c.funder] || 0) + 1);
-  const eu = CALLS.filter(c => c.eu && !hiddenBy(c)).length, all = CALLS.filter(c => !hiddenBy(c)).length;
+  CALLS.filter(isShown).forEach(c => count[c.funder] = (count[c.funder] || 0) + 1);
+  const eu = CALLS.filter(c => c.eu && isShown(c)).length, all = CALLS.filter(isShown).length;
   const opts = [["", "All"], ["__eu", `EU-funded only (${eu})`], ["__noneu", `Not EU-funded (${all - eu})`]]
     .concat(Object.keys(count).sort((a, b) => a.localeCompare(b)).map(f => [f, `${f} (${count[f]})`]));
   sel.replaceChildren(...opts.map(([v, t]) => Object.assign(document.createElement("option"), { value: v, textContent: t })));
@@ -575,14 +702,29 @@ function fillFunders() {
 function render() {
   fillFunders();
   const shown = CALLS.filter(matches);
-  const open = shown.filter(c => c.days >= 0).sort((a, b) => a.days - b.days);
+  const byFit = $("fSort").value === "fit";
+  const open = shown.filter(c => c.days >= 0).sort((a, b) => (byFit ? (b.fit || 0) - (a.fit || 0) : 0) || a.days - b.days);
   const closed = shown.filter(c => c.days < 0).sort((a, b) => b.days - a.days);
   fill($("openList"), $("openCount"), open);
   fill($("closedList"), $("closedCount"), closed);
   $("keywordFilter").classList.toggle("on", !!keyword);
   $("kwName").textContent = keyword;
-  const hiddenCount = CALLS.filter(hiddenBy).length;
-  $("sourceInfo").textContent = `Showing: ${sourceLabel} (${CALLS.length} calls` + (hiddenCount ? `, ${hiddenCount} hidden as not my topics)` : ")");
+  const hiddenCount = CALLS.filter(hiddenBy).length, otherCount = CALLS.filter(c => isOther(c) && !hiddenBy(c)).length;
+  $("sourceInfo").textContent = `Showing: ${sourceLabel} (${CALLS.length} calls` + (hiddenCount ? `, ${hiddenCount} hidden as not my topics` : "")
+    + (otherCount && !showOther ? `, ${otherCount} other EU calls hidden` : "") + ")";
+  $("otherToggle").hidden = !otherCount;
+  $("otherCount").textContent = otherCount;
+  const visibleBase = c => !hiddenBy(c) && !fitHidden(c);
+  const dismissedCount = CALLS.filter(c => dismissed.has(c.id) && visibleBase(c)).length;
+  if (!dismissedCount) showDismissed = false;
+  $("dismissedToggle").hidden = !dismissedCount;
+  $("dismissedCount").textContent = dismissedCount;
+  $("fDismissed").checked = showDismissed;
+  const newCount = CALLS.filter(c => newIds.has(c.id) && isShown(c)).length;
+  if (!newIds.size) onlyNew = false;
+  $("newToggle").hidden = !newIds.size;
+  $("newCount").textContent = newCount;
+  $("fNew").checked = onlyNew;
   if (!$("kwPanel").hidden) renderKeywordPanel();
   $("sampleNote").hidden = sourceLabel !== "made-up sample";
   renderSummary(open, closed);
@@ -690,7 +832,11 @@ function renderKeywords(open) {
 }
 function wrap(el) { const d = document.createElement("div"); d.append(el); return d; }
 
-["fType", "fWho", "fStatus", "fFunder"].forEach(id => $(id).onchange = render);
+["fType", "fWho", "fStatus", "fFunder", "fSort"].forEach(id => $(id).onchange = render);
+$("fOther").onchange = () => { showOther = $("fOther").checked; render(); };
+$("fDismissed").onchange = () => { showDismissed = $("fDismissed").checked; render(); };
+$("fNew").onchange = () => { onlyNew = $("fNew").checked; render(); };
+$("fSearch").oninput = render;
 $("kwClear").onclick = () => { keyword = ""; render(); };
 $("loadBtn").onclick = () => $("csvFile").click();
 $("csvFile").onchange = async e => {
@@ -704,6 +850,101 @@ $("sampleBtn").onclick = () => {
   sourceLabel = "made-up sample"; $("loadMsg").hidden = true;
   render();
 };
+// ---- Share: a message with details, as an e-mail draft, a copy, or the system share sheet ----
+const MAIL_LIMIT = 1800;   // many mail programs cut very long links
+const dayText = c => `${fmt(c.deadline)} (${countdown(c.days).text})`;
+const linkOf = c => /^https?:/.test(c.link) ? c.link : "";
+
+function oneMessage(c) {
+  const lines = [`Funding call: ${c.title}`, `Funder: ${c.funder}${c.eu ? " (EU-funded)" : ""}`,
+    `Type: ${c.type} · Deadline: ${dayText(c)}`,
+    `Who can apply: ${c.who.join(", ") || "see call page"} · Amount: ${c.amount}`];
+  if (c.keywords.length) lines.push(`Topics: ${c.keywords.join(", ")}`);
+  if (status[c.id]) lines.push(`My status: ${status[c.id]}`);
+  if (linkOf(c)) lines.push(`Link: ${linkOf(c)}`);
+  return lines.join("\n");
+}
+
+function listMessage(calls) {
+  const items = calls.map((c, i) => `${i + 1}. ${c.title}\n   ${c.funder} · deadline ${dayText(c)}${status[c.id] ? " · " + status[c.id] : ""}` +
+    (linkOf(c) ? `\n   ${linkOf(c)}` : ""));
+  return `Funding calls to look at (${calls.length}), soonest deadline first:\n\n` + items.join("\n\n");
+}
+
+function shareCandidates() {
+  const open = CALLS.filter(c => c.days >= 0 && isShown(c)).sort((a, b) => a.days - b.days);
+  const marked = open.filter(c => ["interesting", "applying"].includes(status[c.id]));
+  const shownNow = CALLS.filter(matches).filter(c => c.days >= 0)
+    .sort((a, b) => ($("fSort").value === "fit" ? (b.fit || 0) - (a.fit || 0) : 0) || a.days - b.days);
+  return { marked, shown: shownNow.slice(0, 10), shownTotal: shownNow.length };
+}
+
+let shareSubject = "", shareCtx = null;
+function refreshShareDraft() {
+  const text = $("shareText").value;
+  let body = text, cut = false;
+  if (encodeURIComponent(body).length > MAIL_LIMIT) {
+    cut = true;
+    const parts = text.split("\n\n"); body = "";
+    for (const part of parts) {
+      const next = body ? body + "\n\n" + part : part;
+      if (encodeURIComponent(next).length > MAIL_LIMIT - 120) break;
+      body = next;
+    }
+    body = (body || text.slice(0, 600)) + "\n\n[...shortened: the full list is longer]";
+  }
+  $("shareEmail").href = `mailto:?subject=${encodeURIComponent(shareSubject)}&body=${encodeURIComponent(body)}`;
+  $("shareWarn").hidden = !cut;
+  if (cut) $("shareWarn").textContent = "The e-mail draft is cut because long e-mails can fail. Use \"Copy text\" to send the whole list in a chat or document.";
+}
+
+function fillShareFromScope() {
+  const { marked, shown } = shareCandidates();
+  const calls = $("shareScope").value === "marked" ? marked : shown;
+  shareSubject = `Funding calls to look at (${calls.length})`;
+  $("shareText").value = listMessage(calls);
+  refreshShareDraft();
+}
+
+function openShare(ctx) {
+  shareCtx = ctx; $("shareMsg").textContent = "";
+  if (ctx.type === "one") {
+    $("shareTitle").textContent = "Share this call";
+    $("shareScopeRow").hidden = true;
+    shareSubject = `Call: ${ctx.call.title} (deadline ${fmt(ctx.call.deadline)})`;
+    $("shareText").value = oneMessage(ctx.call);
+    refreshShareDraft();
+  } else {
+    const { marked, shown, shownTotal } = shareCandidates();
+    $("shareTitle").textContent = "Share a list of calls";
+    $("shareScopeRow").hidden = false;
+    $("shareScope").innerHTML = "";
+    $("shareScope").append(
+      Object.assign(document.createElement("option"), { value: "marked", textContent: `Calls I marked interesting or applying (${marked.length})` }),
+      Object.assign(document.createElement("option"), { value: "shown", textContent: `Open calls shown now (first ${shown.length} of ${shownTotal})` }));
+    $("shareScope").value = marked.length ? "marked" : "shown";
+    fillShareFromScope();
+  }
+  $("shareNative").hidden = typeof navigator.share !== "function";
+  $("shareDialog").showModal();
+}
+
+$("shareListBtn").onclick = () => openShare({ type: "list" });
+$("shareScope").onchange = fillShareFromScope;
+$("shareText").oninput = refreshShareDraft;
+$("shareClose").onclick = () => $("shareDialog").close();
+$("shareDialog").addEventListener("click", e => { if (e.target === $("shareDialog")) $("shareDialog").close(); });
+$("shareCopy").onclick = async () => {
+  const text = $("shareText").value;
+  try { await navigator.clipboard.writeText(text); }
+  catch { $("shareText").select(); document.execCommand("copy"); }
+  $("shareMsg").textContent = "Copied. Paste it into a chat or an e-mail.";
+};
+$("shareNative").onclick = async () => {
+  try { await navigator.share({ title: shareSubject, text: $("shareText").value }); }
+  catch (e) { if (e.name !== "AbortError") $("shareMsg").textContent = "Sharing did not work here: use Copy text."; }
+};
+
 // ---- newest results + Refresh ----
 const HELPER = location.protocol.startsWith("http");   // true when opened through serve.py
 const fmtTime = iso => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -717,7 +958,8 @@ function useLive(text, generated) {
   const before = new Set(CALLS.map(c => c.id));
   if (!useCSV(text, liveLabel(generated), false)) return null;
   localStorage.removeItem(CSV_STORE);   // newest results win over an older manual file
-  return CALLS.filter(c => !before.has(c.id) && c.days >= 0 && !hiddenBy(c)).length;
+  trackNew(); render();
+  return CALLS.filter(c => !before.has(c.id) && c.days >= 0 && isShown(c)).length;
 }
 
 async function pollRefresh() {
@@ -736,7 +978,7 @@ async function pollRefresh() {
   }
   const text = await (await fetch("live_calls.csv", { cache: "no-store" })).text();
   const fresh = useLive(text, st.finished);
-  const open = CALLS.filter(c => c.days >= 0 && !hiddenBy(c)).length;
+  const open = CALLS.filter(c => c.days >= 0 && isShown(c)).length;
   showRefresh(`Updated ${fmtTime(st.finished)}: ${plural(CALLS.length, "call")}, ${open} open` + (fresh ? `, <b>${fresh} new open</b> since before.` : ".") +
     ` <details style="display:inline"><summary>details</summary><pre>${esc(st.log.trim())}</pre></details>`, "ok");
 }
@@ -754,7 +996,7 @@ $("refreshBtn").onclick = async () => {
 const live = window.LIVE_CALLS;
 const manual = JSON.parse(localStorage.getItem(CSV_STORE) || "null");
 if (manual && (!live || (manual.loadedAt || "") > live.generated) && useCSV(manual.text, manual.name, false)) {}
-else if (live && useCSV(live.csv, liveLabel(live.generated), false)) {}
+else if (live && useCSV(live.csv, liveLabel(live.generated), false)) { trackNew(); render(); }
 else render();
 if (HELPER) fetch("/api/status", { cache: "no-store" }).then(r => r.json()).then(st => { if (st.running) pollRefresh(); }).catch(() => {});
 </script>

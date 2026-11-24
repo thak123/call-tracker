@@ -3,6 +3,7 @@
 Part A  page workflows      tests/ui.test.mjs     (Chrome in a hidden window, via Node)
 Part B  search script       tests/test_fetch.py   (saved website copies, no internet)
 Part C  helper (serve.py)   tests/test_serve.py
+Part D  weekly runner       tests/test_weekly.py
 """
 import subprocess
 import sys
@@ -40,6 +41,7 @@ def main():
         "A": ("Part A - page workflows", ["node", "--test", "--test-reporter=spec", str(TESTS / "ui.test.mjs")]),
         "B": ("Part B - search script", [sys.executable, "-m", "unittest", "-v", "tests.test_fetch"]),
         "C": ("Part C - helper", [sys.executable, "-m", "unittest", "-v", "tests.test_serve"]),
+        "D": ("Part D - weekly runner", [sys.executable, "-m", "unittest", "-v", "tests.test_weekly"]),
     }
     for key, (title, cmd) in parts.items():
         if only and key not in only:

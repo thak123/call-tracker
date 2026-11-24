@@ -1,0 +1,7 @@
+id,title,funder,eu,source,fit,scope,type,deadline,link,amount,who,keywords
+h1,A very long call title that needs several lines on a card because the programme name is extremely long and descriptive,European Commission · Horizon Europe,yes,EU portal,5,core,grant,2027-01-10,https://example.com/h1,see call page,staff;PhD;students,natural language processing;machine translation;speech recognition;multilingual
+h2,Short call,Test Fund,,HRZZ,1,core,grant,2027-01-11,https://example.com/h2,€1,staff,
+h3,Another short one,Test Fund,,HRZZ,1,core,datathon,2027-01-12,https://example.com/h3,€2,students,
+h4,Fourth call,Test Fund,,HRZZ,1,core,grant,2027-01-13,https://example.com/h4,€3,staff,
+h5,Fifth call,Test Fund,,HRZZ,1,core,grant,2027-01-14,https://example.com/h5,€4,staff,multilingual
+h6,Sixth call,Test Fund,,HRZZ,1,core,grant,2027-01-15,https://example.com/h6,€5,staff,

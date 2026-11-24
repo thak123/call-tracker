@@ -23,5 +23,14 @@
  "https://uniri.hr/wp-json/wp/v2/vijesti?search=natje%C4%8Daj&per_page=50&_fields=id%2Cdate%2Ctitle%2Clink%2Ccontent&after=2025-09-25T00%3A00%3A00": "02b6b65ce19b3978.gz",
  "https://uniri.hr/wp-json/wp/v2/vijesti?search=natjecanje&per_page=50&_fields=id%2Cdate%2Ctitle%2Clink%2Ccontent&after=2025-09-25T00%3A00%3A00": "dd42186a87c46785.gz",
  "https://uniri.hr/wp-json/wp/v2/vijesti?search=stipendij&per_page=50&_fields=id%2Cdate%2Ctitle%2Clink%2Ccontent&after=2025-09-25T00%3A00%3A00": "e92b8a08804f1fd4.gz",
- "https://uniri.hr/wp-json/wp/v2/vijesti?search=thon&per_page=50&_fields=id%2Cdate%2Ctitle%2Clink%2Ccontent&after=2025-09-25T00%3A00%3A00": "4936920ca1eb32af.gz"
+ "https://uniri.hr/wp-json/wp/v2/vijesti?search=thon&per_page=50&_fields=id%2Cdate%2Ctitle%2Clink%2Ccontent&after=2025-09-25T00%3A00%3A00": "4936920ca1eb32af.gz",
+ "https://devpost.com/api/hackathons?status[]=open&order_by=deadline&per_page=100&page=1": "6b6721475ec4d40b.gz",
+ "https://devpost.com/api/hackathons?status[]=open&order_by=deadline&per_page=100&page=2": "229e8d3bdac88c97.gz",
+ "https://api.tech.ec.europa.eu/search-api/prod/rest/search?apiKey=SEDIA&text=%2A%2A%2A&pageSize=100&pageNumber=1": "80c777a6b4195820.gz",
+ "https://api.tech.ec.europa.eu/search-api/prod/rest/search?apiKey=SEDIA&text=%2A%2A%2A&pageSize=100&pageNumber=2": "530d332924296f29.gz",
+ "https://api.tech.ec.europa.eu/search-api/prod/rest/search?apiKey=SEDIA&text=%2A%2A%2A&pageSize=100&pageNumber=3": "bbea14c68ce380fc.gz",
+ "https://api.tech.ec.europa.eu/search-api/prod/rest/search?apiKey=SEDIA&text=%2A%2A%2A&pageSize=100&pageNumber=4": "8ed02c525a078db8.gz",
+ "https://api.tech.ec.europa.eu/search-api/prod/rest/search?apiKey=SEDIA&text=%2A%2A%2A&pageSize=100&pageNumber=5": "ba18b57a6f7664ae.gz",
+ "https://api.tech.ec.europa.eu/search-api/prod/rest/search?apiKey=SEDIA&text=%2A%2A%2A&pageSize=100&pageNumber=6": "5c00fc8bee781b33.gz",
+ "https://api.tech.ec.europa.eu/search-api/prod/rest/search?apiKey=SEDIA&text=%2A%2A%2A&pageSize=100&pageNumber=7": "43767016aa34f6c5.gz"
 }

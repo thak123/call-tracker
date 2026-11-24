@@ -1,0 +1,7 @@
+id,title,funder,eu,source,fit,scope,type,deadline,link,amount,who,keywords
+b01,Keyword Match Call,Test Fund A,,HRZZ,3,core,grant,2026-12-10,https://example.com/b01,€1,staff,natural language processing
+b02,Browse Call Strong Fit,European Commission · Horizon Europe,yes,EU portal,5,browse,grant,2027-01-10,https://example.com/b02,€2,staff;PhD,speech recognition
+b03,Browse Call Some Fit,European Commission · Horizon Europe,yes,EU portal,1,browse,grant,2027-01-12,https://example.com/b03,€3,staff;PhD,
+b04,Browse Call No Fit,European Commission · Horizon Europe,yes,EU portal,0,browse,grant,2027-01-14,https://example.com/b04,€4,staff;PhD,
+b05,Browse Call Also No Fit,European Commission · Horizon Europe,yes,EU portal,0,browse,grant,2027-01-16,https://example.com/b05,€5,staff;PhD,
+b06,Climate Browse Call,European Commission · Horizon Europe,yes,EU portal,3,browse,grant,2027-01-18,https://example.com/b06,€6,staff;PhD,

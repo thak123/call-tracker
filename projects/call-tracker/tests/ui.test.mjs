@@ -350,3 +350,266 @@ test("A16 funder filter and EU tag; sources are not keywords", async () => {
   for (const source of ["HRZZ", "UNIRI", "MZOM", "AMPEU", "EU portal"]) assert.ok(!tags.includes(source), `${source} is not shown as a keyword`);
   assert.match(await page.eval(`[...document.querySelectorAll(".card")].find(c => c.textContent.includes("Machine Translation")).textContent`), /found on MZOM, UNIRI/);
 });
+
+// ---------------------------------------------------------------- A17
+test("A17 other EU calls: hidden by default, 'Also show' reveals them, fit badge and sorting", async () => {
+  await page.setFile("#csvFile", CSV("browse.csv"));
+  assert.match(await page.text("#sourceInfo"), /browse\.csv \(6 calls, 1 hidden as not my topics, 2 other EU calls hidden\)/);
+  assert.equal(await openCount(), "(3)", "keyword match + two browse calls with fit 1 or more");
+  assert.equal(await page.visible("#otherToggle"), true);
+  assert.equal(await page.text("#otherCount"), "2");
+  assert.match(await page.text("#otherToggle"), /Also show 2 other EU calls/);
+  assert.equal(await page.eval(`[...document.querySelectorAll("#openList .card .title")].some(t => t.textContent.includes("No Fit"))`), false);
+  // fit badge
+  assert.match(await page.eval(`[...document.querySelectorAll("#openList .card")].find(c => c.textContent.includes("Strong Fit")).textContent`), /fit 5/);
+  // best fit first is the default; the sort box can switch to deadline
+  assert.equal(await page.eval(`document.getElementById("fSort").value`), "fit");
+  assert.deepEqual(await page.eval(`[...document.querySelectorAll("#openList .card .title")].map(t => t.textContent)`),
+    ["Browse Call Strong Fit", "Keyword Match Call", "Browse Call Some Fit"]);
+  await select("fSort", "deadline");
+  assert.equal(await page.eval(`document.querySelector("#openList .card .title").textContent`), "Keyword Match Call");
+  // reveal the rest
+  await page.click("#fOther");
+  assert.equal(await openCount(), "(5)");
+  assert.equal(await page.visible("#otherToggle"), true, "toggle stays so I can hide them again");
+  assert.doesNotMatch(await page.text("#sourceInfo"), /other EU calls hidden/);
+  assert.deepEqual(await page.eval(`[...document.getElementById("fFunder").options].slice(0, 3).map(o => o.textContent)`),
+    ["All", "EU-funded only (4)", "Not EU-funded (1)"], "funder counts follow what is shown (climate one is hidden as not my topic)");
+  await page.click("#fOther");
+  assert.equal(await openCount(), "(3)");
+});
+
+// ---------------------------------------------------------------- A18
+const search = async text => {
+  await page.eval(`(() => { const i = document.getElementById("fSearch"); i.value = ""; i.dispatchEvent(new Event("input")); })()`);
+  if (text) await page.type("#fSearch", text);
+  await sleep(100);
+};
+test("A18 search box: finds words in title, funder and keywords; all words must match", async () => {
+  assert.equal(await page.visible("#fSearch"), true);
+  await search("speech");
+  assert.equal(await openCount(), "(1)", "title and keyword 'speech recognition'");
+  await search("SPEECH");
+  assert.equal(await openCount(), "(1)", "capital letters do not matter");
+  await search("test lab");
+  assert.equal(await openCount(), "(1)"); assert.equal(await closedCount(), "(1)", "funder name, open and closed");
+  await search("lab speech");
+  assert.equal(await closedCount(), "(1)", "'hate speech' keyword of the closed call");
+  await search("recognition lab");
+  assert.equal(await openCount(), "(1)"); assert.equal(await closedCount(), "(0)", "every word must match, in any order");
+  await search("machine translation");
+  assert.equal(await openCount(), "(1)");
+  await search("zzzz");
+  assert.equal(await page.text("#openList .empty"), "No calls match the filters.");
+  assert.equal(await tile("tOpen"), "0", "summary follows the search");
+  await search("");
+  assert.equal(await openCount(), "(7)");
+  await search("grant"); await select("fType", "datathon");
+  assert.equal(await openCount(), "(0)", "search combines with the other filters");
+});
+
+// ---------------------------------------------------------------- A19
+test("A19 dismiss a call: hidden for good, can be shown again and restored", async () => {
+  const firstTitle = await page.text("#openList .card .title");
+  assert.equal(await page.visible("#dismissedToggle"), false, "nothing dismissed yet");
+  await page.click("#openList .card .dismiss");
+  assert.equal(await openCount(), "(6)");
+  assert.equal(await tile("tOpen"), "6");
+  assert.notEqual(await page.text("#openList .card .title"), firstTitle, "card is gone");
+  await page.reload();
+  assert.equal(await openCount(), "(6)", "still dismissed after reload");
+  assert.equal(await page.visible("#dismissedToggle"), true);
+  assert.match(await page.text("#dismissedToggle"), /Show 1 dismissed/);
+  await page.click("#fDismissed");
+  assert.equal(await openCount(), "(7)");
+  assert.equal(await page.eval(`[...document.querySelectorAll("#openList .card")].find(c => c.querySelector(".title").textContent === ${JSON.stringify(firstTitle)}).querySelector(".dismiss").textContent`), "Restore");
+  await page.eval(`[...document.querySelectorAll("#openList .card")].find(c => c.querySelector(".title").textContent === ${JSON.stringify(firstTitle)}).querySelector(".dismiss").setAttribute("data-pick", "1")`);
+  await page.click('#openList .dismiss[data-pick="1"]');
+  assert.equal(await page.visible("#dismissedToggle"), false, "nothing dismissed any more");
+  assert.equal(await openCount(), "(7)");
+  await page.reload();
+  assert.equal(await openCount(), "(7)", "restored for good");
+});
+
+// ---------------------------------------------------------------- A20
+test("A20 NEW badge: calls that appeared since my last visit", async () => {
+  // first visit ever: nothing is marked new
+  assert.equal(await page.eval(`document.querySelectorAll(".newtag").length`), 0);
+  assert.equal(await page.visible("#newToggle"), false);
+  // pretend I last saw every call except "Late Big Grant" (t07)
+  await page.eval(`localStorage.setItem("callTracker.seen", JSON.stringify(["t01","t02","t03","t04","t05","t06","t08","t09","t10"]))`);
+  await page.reload();
+  assert.equal(await page.eval(`document.querySelectorAll("#openList .newtag").length`), 1);
+  assert.match(await page.eval(`[...document.querySelectorAll("#openList .card")].find(c => c.querySelector(".newtag")).textContent`), /Late Big Grant/);
+  assert.equal(await page.visible("#newToggle"), true);
+  assert.match(await page.text("#newToggle"), /Only new \(1\)/);
+  await page.click("#fNew");
+  assert.equal(await openCount(), "(1)"); assert.equal(await closedCount(), "(0)");
+  await page.click("#fNew");
+  assert.equal(await openCount(), "(7)");
+  // next visit: already seen
+  await page.reload();
+  assert.equal(await page.eval(`document.querySelectorAll(".newtag").length`), 0, "no longer new on the next visit");
+  // loading my own CSV does not change what I have seen
+  const before = await page.eval(`localStorage.getItem("callTracker.seen")`);
+  await page.setFile("#csvFile", join(APP, "calls.csv"));
+  assert.equal(await page.eval(`localStorage.getItem("callTracker.seen")`), before);
+  assert.equal(await page.eval(`document.querySelectorAll(".newtag").length`), 0, "no NEW badges on my own file");
+});
+
+// ---------------------------------------------------------------- A21 – A23: share
+const shareOpen = () => page.eval(`document.getElementById("shareDialog").open`);
+const shareText = () => page.eval(`document.getElementById("shareText").value`);
+const mailto = () => page.eval(`decodeURIComponent(document.getElementById("shareEmail").getAttribute("href"))`);
+const markStatus = (index, value) => page.eval(`(() => { const s = document.querySelectorAll("#openList .card select")[${index}]; s.value = ${JSON.stringify(value)}; s.dispatchEvent(new Event("change")); })()`);
+
+test("A21 share one call: message with details, e-mail draft, copy, system share", async () => {
+  assert.equal(await shareOpen(), false);
+  await page.click("#openList .card .share");
+  assert.equal(await shareOpen(), true, "Share opens a window");
+  const text = await shareText();
+  for (const part of ["Funding call: Last Week Grant", "Funder: Test Fund D", "Type: grant · Deadline: 27 Nov 2026 (3 days left)",
+                      "Who can apply: staff · Amount: €10", "Topics: multilingual", "Link: https://example.com/t10"])
+    assert.ok(text.includes(part), `message contains "${part}"`);
+  assert.ok(!text.includes("My status"), "no status line when none is set");
+  // e-mail draft
+  const m = await mailto();
+  assert.ok(m.startsWith("mailto:?subject=Call: Last Week Grant (deadline 27 Nov 2026)&body=Funding call: Last Week Grant"), m.slice(0, 120));
+  // editing the message changes the draft
+  await page.eval(`(() => { const t = document.getElementById("shareText"); t.value = "Hello colleague,\\n\\n" + t.value; t.dispatchEvent(new Event("input")); })()`);
+  assert.match(await mailto(), /body=Hello colleague,/);
+  // copy
+  await page.eval(`Object.defineProperty(navigator, "clipboard", { value: { writeText: async t => { window.__copied = t; } }, configurable: true })`);
+  await page.click("#shareCopy");
+  assert.equal(await page.eval(`window.__copied`), await shareText(), "copied exactly what is shown");
+  assert.match(await page.text("#shareMsg"), /Copied/);
+  // no system share where the browser does not offer it
+  assert.equal(await page.visible("#shareNative"), false);
+  // Esc closes
+  await page.key("Escape");
+  assert.equal(await shareOpen(), false, "Esc closes the share window");
+  // my status is included when set; system share sheet where available
+  await markStatus(0, "interesting");
+  await page.eval(`navigator.share = async d => { window.__shared = d; }`);
+  await page.click("#openList .card .share");
+  assert.match(await shareText(), /My status: interesting/);
+  assert.equal(await page.visible("#shareNative"), true, "system share offered when the browser supports it");
+  await page.click("#shareNative");
+  const shared = await page.eval(`window.__shared`);
+  assert.match(shared.title, /Last Week Grant/); assert.equal(shared.text, await shareText());
+  await page.click("#shareClose");
+  assert.equal(await shareOpen(), false, "Close button closes it");
+});
+
+test("A22 share a list: calls I marked, or the calls shown now", async () => {
+  // nothing marked: defaults to the calls shown now
+  await page.click("#shareListBtn");
+  assert.equal(await shareOpen(), true);
+  assert.equal(await page.eval(`document.getElementById("shareScope").value`), "shown");
+  assert.match(await shareText(), /Funding calls to look at \(7\)/);
+  await page.key("Escape");
+  // mark two calls, then share the marked ones
+  await markStatus(0, "interesting"); await markStatus(1, "applying");
+  await page.click("#shareListBtn");
+  assert.equal(await page.eval(`document.getElementById("shareScope").value`), "marked");
+  const text = await shareText();
+  assert.match(text, /^Funding calls to look at \(2\)/);
+  assert.match(text, /1\. Last Week Grant\n\s+Test Fund D · deadline 27 Nov 2026 \(3 days left\) · interesting\n\s+https:\/\/example\.com\/t10/);
+  assert.match(text, /2\. NLP Research Grant/);
+  assert.ok(!text.includes("3. "), "only the two marked calls");
+  assert.match(await mailto(), /^mailto:\?subject=Funding calls to look at \(2\)&body=/);
+  // switch to the calls shown now
+  await page.eval(`(() => { const s = document.getElementById("shareScope"); s.value = "shown"; s.dispatchEvent(new Event("change")); })()`);
+  assert.match(await shareText(), /Funding calls to look at \(7\)/);
+  await page.key("Escape");
+});
+
+test("A23 a long list: the e-mail draft is shortened, the copied text is complete", async () => {
+  const rows = ["id,title,funder,type,deadline,link,amount,who,keywords"];
+  for (let i = 1; i <= 14; i++)
+    rows.push(`L${i},Long call title number ${i} ${"about many research topics ".repeat(4)},Some Funder,grant,2027-01-${String(10 + i).padStart(2, "0")},https://example.com/long-call-${i},€1,staff,`);
+  const file = join(HERE, ".tmp", "long.csv"); writeFileSync(file, rows.join("\n"));
+  await page.setFile("#csvFile", file);
+  await page.click("#shareListBtn");
+  const text = await shareText();
+  assert.equal((text.match(/^\d+\. /gm) || []).length, 10, "a list holds at most 10 calls");
+  const body = (await mailto()).split("&body=")[1];
+  assert.ok(body.length < text.length, "e-mail draft is shorter");
+  assert.equal(await page.visible("#shareWarn"), true);
+  assert.match(await page.text("#shareWarn"), /cut|shortened/i);
+  assert.ok(text.includes("10. Long call title number 10"), "the full text is still there for copying");
+  await page.key("Escape");
+});
+
+// ---------------------------------------------------------------- A24
+const rgb = s => (s.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+const lum = ([r, g, b]) => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+const contrast = (a, b) => { const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+const style = (cardTitle, selector, prop) => page.eval(`(() => {
+  const card = [...document.querySelectorAll(".card")].find(c => c.querySelector(".title").textContent === ${JSON.stringify(cardTitle)});
+  const el = ${selector === "card" ? "card" : `card.querySelector(${JSON.stringify(selector)})`};
+  return el ? getComputedStyle(el)[${JSON.stringify(prop)}] : null; })()`);
+
+test("A24 card colours: each kind of data has its own background and readable text", async () => {
+  // the first card (Last Week Grant: grant, €10, 3 days left, staff)
+  const kinds = ["funder", "type", "amount", "deadline", "who"];
+  const seen = {};
+  for (const k of kinds) {
+    const bg = await style("Last Week Grant", `.chip-${k}`, "backgroundColor");
+    const fg = await style("Last Week Grant", `.chip-${k}`, "color");
+    assert.ok(bg && bg !== "rgba(0, 0, 0, 0)", `${k} has a background colour`);
+    assert.ok(contrast(fg, bg) >= 4.5, `${k}: text is readable (contrast ${contrast(fg, bg).toFixed(1)})`);
+    seen[k] = bg;
+  }
+  assert.equal(new Set(Object.values(seen)).size, 5, "funder, type, amount, deadline and who-can-apply all differ: " + JSON.stringify(seen));
+  // words stay: colour is never the only information
+  assert.equal(await page.text(".card .chip-type"), "grant");
+  assert.match(await page.text(".card .chip-deadline"), /^Deadline 27 Nov 2026$/);
+  assert.equal(await page.text(".card .chip-amount"), "€10");
+  // type: each type has its own tint and its own card edge
+  const grantBg = await style("Last Week Grant", ".chip-type", "backgroundColor");
+  const dataBg = await style("Speech Datathon", ".chip-type", "backgroundColor");
+  const compBg = await style("Student Language Competition", ".chip-type", "backgroundColor");
+  const thirdBg = await style("AI Industry Call", ".chip-type", "backgroundColor");
+  assert.equal(new Set([grantBg, dataBg, compBg, thirdBg]).size, 4, "4 types, 4 colours");
+  assert.notEqual(await style("Last Week Grant", "card", "borderLeftColor"), await style("Speech Datathon", "card", "borderLeftColor"), "card edge follows the type");
+  // deadline: urgency colour (3 days vs 97 days)
+  assert.notEqual(await style("Last Week Grant", ".chip-deadline", "backgroundColor"), await style("Machine Translation Grant", ".chip-deadline", "backgroundColor"));
+  // EU funder looks different from other funders
+  assert.notEqual(await style("AI Industry Call", ".chip-funder", "backgroundColor"), await style("Last Week Grant", ".chip-funder", "backgroundColor"));
+  // each group of people has its own chip colour (staff, PhD)
+  const whoBgs = await page.eval(`(() => { const card = [...document.querySelectorAll(".card")].find(c => c.querySelector(".title").textContent === "NLP Research Grant");
+    return [...card.querySelectorAll(".chip-who")].map(e => e.textContent + ":" + getComputedStyle(e).backgroundColor); })()`);
+  assert.equal(whoBgs.length, 2); assert.equal(new Set(whoBgs.map(x => x.split(":")[1])).size, 2, "staff and PhD differ: " + whoBgs);
+  // my status colours the status box
+  const none = await page.eval(`getComputedStyle(document.querySelector("#openList .card select")).backgroundColor`);
+  await markStatus(0, "interesting");
+  const interesting = await page.eval(`getComputedStyle(document.querySelector("#openList .card select")).backgroundColor`);
+  await markStatus(0, "applying");
+  const applying = await page.eval(`getComputedStyle(document.querySelector("#openList .card select")).backgroundColor`);
+  assert.equal(new Set([none, interesting, applying]).size, 3, "status colours: " + [none, interesting, applying]);
+});
+
+// ---------------------------------------------------------------- A25
+test("A25 card buttons sit at the bottom edge of every card, in one line across a row", async () => {
+  await page.setFile("#csvFile", CSV("heights.csv"));
+  await select("fSort", "deadline");
+  const gaps = await page.eval(`(() => {
+    const cards = [...document.querySelectorAll("#openList .card")];
+    const rows = {};
+    for (const c of cards) { const top = Math.round(c.getBoundingClientRect().top); (rows[top] = rows[top] || []).push(c); }
+    return Object.values(rows).map(list => list.map(c => ({
+      height: Math.round(c.getBoundingClientRect().height),
+      gap: Math.round(c.getBoundingClientRect().bottom - c.querySelector(".row").getBoundingClientRect().bottom) })));
+  })()`);
+  const firstRow = gaps[0];
+  assert.ok(firstRow.length >= 2, "cards sit side by side");
+  assert.ok(new Set(firstRow.map(c => c.height)).size === 1, "cards in a row are equally tall");
+  const rowHeights = await page.eval(`(() => { const c = document.querySelector("#openList .card"); return c.getBoundingClientRect().height; })()`);
+  assert.ok(rowHeights > 200, "the tall card makes the row tall");
+  for (const row of gaps) {
+    const g = row.map(c => c.gap);
+    assert.ok(Math.max(...g) - Math.min(...g) <= 1, `buttons end at the same height in a row: gaps ${g}`);
+    assert.ok(Math.max(...g) <= 20, `buttons sit right at the bottom (gap ${g})`);
+  }
+});
